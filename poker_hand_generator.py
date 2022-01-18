@@ -18,3 +18,4 @@ def hand_generator(num_players=1):
     
 if __name__ == "__main__":
     print(hand_generator())
+    # result: (['6S', 'KC', '2S', '5S', '3D'], [['KD', '7S']])
