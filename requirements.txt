@@ -1,0 +1,4 @@
+gym
+numpy
+treys
+stable-baselines3[extra]
