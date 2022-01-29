@@ -1,3 +1,10 @@
+"""
+This is the game demo(bot) from the texasholdem library
+
+slow but seems to work
+"""
+
+
 import gym
 import numpy as np
 from gym import spaces
