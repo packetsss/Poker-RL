@@ -28,9 +28,10 @@ class PokerEnv(gym.Env):
             ["player 1", action(1-4), (amount of raises if any)],
             ["player 2", action(1-4), (amount of raises if any)],
             
-            [1990, 0],
+            [1, None],
             [2, 10],
-            [3, 0]
+            [3, None],
+            [4, None]
         }
         
         same issue with action space (raise amount)
@@ -38,6 +39,7 @@ class PokerEnv(gym.Env):
         """
 
     def evaluate(self, data, cards_revealed=3):
+        # 0 - 7462
         community_cards = [Card.new(x) for x in data[0][0:cards_revealed]]
         score_list = []
         for x in data[1]:
@@ -47,6 +49,22 @@ class PokerEnv(gym.Env):
         return score_list
 
     def calculate_reward(self):
+        # evaluate the good move or bad move
+        """
+        
+        
+        Goal: most chips
+        Rounds: Pre-flop, flop, turn, river
+        
+        Limits: 10$-1000$, Increments of 10$
+        
+        Small/big blind(pre game bets), Call: match previous player's bet, Raise: increase previous player's bet, Check:
+        decline to bet but still keep cards --> can only do if no one has bet yet (if any player
+        bets, then this person has to make an action), Fold: lose cards and bets
+        
+        Low score + first:
+        check -> call
+        """
         pass
 
     def step(self):
