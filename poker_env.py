@@ -50,18 +50,17 @@ class PokerEnv(gym.Env):
 
     def calculate_reward(self):
         # evaluate the good move or bad move
+        
         """
-        
-        
         Goal: most chips
         Rounds: Pre-flop, flop, turn, river
-        
+
         Limits: 10$-1000$, Increments of 10$
-        
+
         Small/big blind(pre game bets), Call: match previous player's bet, Raise: increase previous player's bet, Check:
         decline to bet but still keep cards --> can only do if no one has bet yet (if any player
         bets, then this person has to make an action), Fold: lose cards and bets
-        
+
         Low score + first:
         check -> call
         """
@@ -75,7 +74,7 @@ class PokerEnv(gym.Env):
 
     def reset(self):
         pass
-    
+
     def close(self):
         # some cleanups
         pass

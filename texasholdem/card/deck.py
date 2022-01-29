@@ -13,6 +13,7 @@ class Deck:
     deck with the list of unique card integers. Each object instantiated simply
     makes a copy of this object and shuffles it.
     """
+
     _FULL_DECK: List[Card] = []
 
     def __init__(self):
@@ -39,7 +40,9 @@ class Deck:
 
         """
         if len(self.cards) < num:
-            raise ValueError(f'Cannot draw {num} cards from deck of size {len(self.cards)}')
+            raise ValueError(
+                f"Cannot draw {num} cards from deck of size {len(self.cards)}"
+            )
 
         cards = self.cards[:num]
         self.cards = self.cards[num:]

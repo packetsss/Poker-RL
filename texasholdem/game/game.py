@@ -21,9 +21,14 @@ import random
 
 from texasholdem.card.card import Card
 from texasholdem.card.deck import Deck
-from texasholdem.game.history import (History, PrehandHistory,
-                                      BettingRoundHistory, PlayerAction,
-                                      SettleHistory, FILE_EXTENSION)
+from texasholdem.game.history import (
+    History,
+    PrehandHistory,
+    BettingRoundHistory,
+    PlayerAction,
+    SettleHistory,
+    FILE_EXTENSION,
+)
 from texasholdem.game.action_type import ActionType
 from texasholdem.game.hand_phase import HandPhase
 from texasholdem.game.player_state import PlayerState
@@ -60,7 +65,6 @@ class Pot:
         self.amount = 0
         self.raised = 0
         self.player_amounts = {}
-    
 
     def chips_to_call(self, player_id: int) -> int:
         """Returns the amount of chips to call for the given player.
@@ -219,7 +223,9 @@ class TexasHoldEm:
         self.small_blind = small_blind
         self.max_players = max_players
 
-        self.players: list[Player] = list(Player(i, self.buyin) for i in range(max_players))
+        self.players: list[Player] = list(
+            Player(i, self.buyin) for i in range(max_players)
+        )
 
         self.btn_loc = random.choice(self.players).player_id
         self.bb_loc = -1
@@ -235,13 +241,15 @@ class TexasHoldEm:
         self.hand_phase = HandPhase.PREHAND
         self.game_state = GameState.RUNNING
 
-        self._handstate_handler: Dict[HandPhase, Callable[[], Optional[Iterator[TexasHoldEm]]]] = {
+        self._handstate_handler: Dict[
+            HandPhase, Callable[[], Optional[Iterator[TexasHoldEm]]]
+        ] = {
             HandPhase.PREHAND: self._prehand,
             HandPhase.PREFLOP: lambda: self._betting_round(HandPhase.PREFLOP),
             HandPhase.FLOP: lambda: self._betting_round(HandPhase.FLOP),
             HandPhase.TURN: lambda: self._betting_round(HandPhase.TURN),
             HandPhase.RIVER: lambda: self._betting_round(HandPhase.RIVER),
-            HandPhase.SETTLE: self._settle
+            HandPhase.SETTLE: self._settle,
         }
 
         self.hand_history: Optional[History] = None
@@ -301,10 +309,9 @@ class TexasHoldEm:
                 big_blind=self.big_blind,
                 small_blind=self.small_blind,
                 player_chips={
-                    i: self.players[i].chips
-                    for i in range(self.max_players)
+                    i: self.players[i].chips for i in range(self.max_players)
                 },
-                player_cards=self.hands
+                player_cards=self.hands,
             )
         )
 
@@ -426,16 +433,21 @@ class TexasHoldEm:
         # players previously in pot need to call in event of a raise
         if amount > chips_to_call:
             for pot_player_id in self._get_pot(last_pot).players_in_pot():
-                if self._get_pot(last_pot).chips_to_call(pot_player_id) > 0 and \
-                   self.players[pot_player_id].state == PlayerState.IN:
+                if (
+                    self._get_pot(last_pot).chips_to_call(pot_player_id) > 0
+                    and self.players[pot_player_id].state == PlayerState.IN
+                ):
                     self.players[pot_player_id].state = PlayerState.TO_CALL
 
         # if a player is all_in in this pot, split a new one off
-        if PlayerState.ALL_IN in (self.players[i].state
-                                  for i in self._get_pot(last_pot).players_in_pot()):
-            raised_level = min(self._get_pot(last_pot).get_player_amount(i)
-                               for i in self._get_pot(last_pot).players_in_pot()
-                               if self.players[i].state == PlayerState.ALL_IN)
+        if PlayerState.ALL_IN in (
+            self.players[i].state for i in self._get_pot(last_pot).players_in_pot()
+        ):
+            raised_level = min(
+                self._get_pot(last_pot).get_player_amount(i)
+                for i in self._get_pot(last_pot).players_in_pot()
+                if self.players[i].state == PlayerState.ALL_IN
+            )
             self._split_pot(last_pot, raised_level)
 
         self.players[player_id].chips = self.players[player_id].chips - original_amount
@@ -496,10 +508,7 @@ class TexasHoldEm:
         if self.hand_phase != HandPhase.SETTLE:
             raise ValueError("Not time for Settle!")
 
-        settle_history = SettleHistory(
-            new_cards=[],
-            winners={}
-        )
+        settle_history = SettleHistory(new_cards=[], winners={})
         self.hand_history[HandPhase.SETTLE] = settle_history
 
         self.current_player = next(self.active_iter(loc=self.btn_loc + 1))
@@ -520,12 +529,16 @@ class TexasHoldEm:
 
             player_ranks = {}
             for player_id in players_in_pot:
-                player_ranks[player_id] = evaluator.evaluate(self.hands[player_id], self.board)
+                player_ranks[player_id] = evaluator.evaluate(
+                    self.hands[player_id], self.board
+                )
 
             best_rank = min(player_ranks.values())
-            winners = [player_id
-                       for player_id, player_rank in player_ranks.items()
-                       if player_rank == best_rank]
+            winners = [
+                player_id
+                for player_id, player_rank in player_ranks.items()
+                if player_rank == best_rank
+            ]
 
             win_amount = (pot.get_total_amount()) / len(winners)
             win_amount = round(win_amount)
@@ -541,7 +554,9 @@ class TexasHoldEm:
             int: The amount of chips the player needs to call in all pots
                 to play the hand.
         """
-        return sum(self._get_pot(i).chips_to_call(player_id) for i in range(len(self.pots)))
+        return sum(
+            self._get_pot(i).chips_to_call(player_id) for i in range(len(self.pots))
+        )
 
     def player_bet_amount(self, player_id: int) -> int:
         """
@@ -551,7 +566,9 @@ class TexasHoldEm:
             int: The amount of chips the player bet this round across all
                 pots.
         """
-        return sum(self._get_pot(i).get_player_amount(player_id) for i in range(len(self.pots)))
+        return sum(
+            self._get_pot(i).get_player_amount(player_id) for i in range(len(self.pots))
+        )
 
     def chips_at_stake(self, player_id: int) -> int:
         """
@@ -560,13 +577,15 @@ class TexasHoldEm:
         Returns:
             int - The amount of chips the player is eligible to win
         """
-        return sum(self._get_pot(i).get_total_amount()
-                   for i in range(len(self.pots))
-                   if player_id in self._get_pot(i).players_in_pot())
+        return sum(
+            self._get_pot(i).get_total_amount()
+            for i in range(len(self.pots))
+            if player_id in self._get_pot(i).players_in_pot()
+        )
 
-    def validate_move(self, player_id: int,
-                      action: ActionType,
-                      value: Optional[int] = None) -> bool:
+    def validate_move(
+        self, player_id: int, action: ActionType, value: Optional[int] = None
+    ) -> bool:
         """
         Validate the potentially invalid action for the given player.
 
@@ -596,19 +615,19 @@ class TexasHoldEm:
             return self.players[player_id].state == PlayerState.IN
         if new_action == ActionType.RAISE:
             return not (
-               new_value is None or
-               (new_value < self.big_blind and action != ActionType.ALL_IN) or
-               player_amount + self.players[player_id].chips < new_value or
-               new_value < chips_to_call
+                new_value is None
+                or (new_value < self.big_blind and action != ActionType.ALL_IN)
+                or player_amount + self.players[player_id].chips < new_value
+                or new_value < chips_to_call
             )
         if new_action == ActionType.FOLD:
             return True
 
         return False
 
-    def _safe_execute(self, player_id: int,
-                      action: ActionType,
-                      value: Optional[int] = None) -> bool:
+    def _safe_execute(
+        self, player_id: int, action: ActionType, value: Optional[int] = None
+    ) -> bool:
         """
         Safely execute the potentially Invalid action for the given player.
 
@@ -646,9 +665,9 @@ class TexasHoldEm:
 
         return True
 
-    def _translate_allin(self,
-                         action: ActionType,
-                         value: int = None) -> Tuple[ActionType, Optional[int]]:
+    def _translate_allin(
+        self, action: ActionType, value: int = None
+    ) -> Tuple[ActionType, Optional[int]]:
         """
         Translates an all-in action to the appropriate action,
         either call or raise.
@@ -656,11 +675,16 @@ class TexasHoldEm:
         if action != ActionType.ALL_IN:
             return action, value
 
-        if self.players[self.current_player].chips <= self.chips_to_call(self.current_player):
+        if self.players[self.current_player].chips <= self.chips_to_call(
+            self.current_player
+        ):
             return ActionType.CALL, None
 
-        return ActionType.RAISE, \
-            self.player_bet_amount(self.current_player) + self.players[self.current_player].chips
+        return (
+            ActionType.RAISE,
+            self.player_bet_amount(self.current_player)
+            + self.players[self.current_player].chips,
+        )
 
     def _betting_round(self, hand_phase: HandPhase) -> Iterator[TexasHoldEm]:
         """
@@ -673,7 +697,12 @@ class TexasHoldEm:
             ValueError             - If self.hand_state is not a valid betting round
         """
 
-        if hand_phase not in (HandPhase.PREFLOP, HandPhase.FLOP, HandPhase.TURN, HandPhase.RIVER):
+        if hand_phase not in (
+            HandPhase.PREFLOP,
+            HandPhase.FLOP,
+            HandPhase.TURN,
+            HandPhase.RIVER,
+        ):
             raise ValueError("Not valid betting round!")
 
         if hand_phase != self.hand_phase:
@@ -682,8 +711,7 @@ class TexasHoldEm:
         # add new cards to the board
         new_cards = self._deck.draw(num=hand_phase.new_cards())
         self.hand_history[hand_phase] = BettingRoundHistory(
-            new_cards=new_cards,
-            actions=[]
+            new_cards=new_cards, actions=[]
         )
         self.board.extend(new_cards)
 
@@ -706,14 +734,16 @@ class TexasHoldEm:
             passed = self._safe_execute(self.current_player, action, val)
 
             if not passed:
-                raise ValueError(f"Invalid move for player {self.current_player}: "
-                                 f"{action}, {val}")
+                raise ValueError(
+                    f"Invalid move for player {self.current_player}: "
+                    f"{action}, {val}"
+                )
 
             betting_history = self.hand_history[self.hand_phase]
-            betting_history.actions.append(PlayerAction(
-                player_id=self.current_player,
-                action_type=action,
-                value=val)
+            betting_history.actions.append(
+                PlayerAction(
+                    player_id=self.current_player, action_type=action, value=val
+                )
             )
 
             # On raise, everyone eligible gets to take another action
@@ -748,7 +778,7 @@ class TexasHoldEm:
             (ValueError)            - If hand already in progress.
         """
         if self.is_hand_running():
-            raise ValueError('In the middle of a hand!')
+            raise ValueError("In the middle of a hand!")
 
         self.hand_phase = HandPhase.PREHAND
         self._handstate_handler[self.hand_phase]()
@@ -804,7 +834,9 @@ class TexasHoldEm:
             if self._is_hand_over():
                 self.hand_phase = HandPhase.SETTLE
 
-            round_iter: Optional[Iterator[TexasHoldEm]] = self._handstate_handler[self.hand_phase]()
+            round_iter: Optional[Iterator[TexasHoldEm]] = self._handstate_handler[
+                self.hand_phase
+            ]()
             if round_iter:
                 yield from round_iter
 
@@ -826,7 +858,9 @@ class TexasHoldEm:
         """
         return self.game_state == GameState.RUNNING
 
-    def export_history(self, path: Union[str, os.PathLike] = "./texas.pgn") -> os.PathLike:
+    def export_history(
+        self, path: Union[str, os.PathLike] = "./texas.pgn"
+    ) -> os.PathLike:
         """
         Exports the hand history to a human-readable file. If a directory is given,
         finds a name of the form texas(n).pgn to export to.
@@ -872,17 +906,19 @@ class TexasHoldEm:
         # pylint: disable=protected-access
         path = Path(path)
         if not path.exists():
-            raise ValueError(f'File not found: {path.absolute()}')
+            raise ValueError(f"File not found: {path.absolute()}")
 
         # reconstitute history
-        with open(path, mode='r', encoding='ascii') as file:
+        with open(path, mode="r", encoding="ascii") as file:
             history = History.from_string(file.read())
 
         num_players = len(history.prehand.player_chips)
-        game = TexasHoldEm(buyin=1,
-                           big_blind=history.prehand.big_blind,
-                           small_blind=history.prehand.small_blind,
-                           max_players=num_players)
+        game = TexasHoldEm(
+            buyin=1,
+            big_blind=history.prehand.big_blind,
+            small_blind=history.prehand.small_blind,
+            max_players=num_players,
+        )
 
         # button placed right before 0
         game.btn_loc = num_players - 1
@@ -897,15 +933,14 @@ class TexasHoldEm:
 
         # fix player actions in stacks
         player_actions: dict[int, List[Tuple[ActionType, Optional[int]]]] = {}
-        for bet_round in (history.river,
-                          history.turn,
-                          history.flop,
-                          history.preflop):
+        for bet_round in (history.river, history.turn, history.flop, history.preflop):
             deck.cards = bet_round.new_cards + deck.cards
             for action in reversed(bet_round.actions):
                 if action.player_id not in player_actions:
                     player_actions[action.player_id] = []
-                player_actions[action.player_id].insert(0, (action.action_type, action.value))
+                player_actions[action.player_id].insert(
+                    0, (action.action_type, action.value)
+                )
 
         # start hand (deck will deal)
         game.start_hand()

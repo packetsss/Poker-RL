@@ -25,6 +25,7 @@ def accept_input(turn, player):
         # always invalid
         return ActionType.RAISE, -1
 
+
 # create a game, but use our own cards
 game = TexasHoldEm(buyin=500, big_blind=5, small_blind=2, max_players=2)
 

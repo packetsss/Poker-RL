@@ -86,11 +86,7 @@ def _seven(cards: List[Card]) -> int:
     return minimum
 
 
-_hand_size_map = {
-    5: _five,
-    6: _six,
-    7: _seven
-}
+_hand_size_map = {5: _five, 6: _six, 7: _seven}
 
 
 def evaluate(cards: List[Card], board: List[Card]) -> int:
@@ -116,9 +112,7 @@ def _get_rank_class(hand_rank: int) -> int:
     returned from evaluate.
 
     """
-    max_rank = min(rank
-                   for rank in LOOKUP_TABLE.MAX_TO_RANK_CLASS
-                   if hand_rank <= rank)
+    max_rank = min(rank for rank in LOOKUP_TABLE.MAX_TO_RANK_CLASS if hand_rank <= rank)
     return LOOKUP_TABLE.MAX_TO_RANK_CLASS[max_rank]
 
 
