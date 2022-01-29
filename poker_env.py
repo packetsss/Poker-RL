@@ -31,14 +31,18 @@ class PokerEnv(gym.Env):
         """
         observation space
         {
-            [own data, eval score]
+            [own data, eval score, reward]
             ["player 1", action(1-4), (amount of raises if any)],
             ["player 2", action(1-4), (amount of raises if any)],
             
-            [1, None],
-            [2, 10],
-            [3, None],
-            [4, None]
+            [123, 1212], [1, None], [None, None], [None, None]
+            [8465, 95], [2, 120], [1, None], [None, None]
+            
+        action space
+            [1, None], call
+            [2, 10], raise
+            [3, None], check
+            [4, None], fold
         }
         
         same issue with action space (raise amount)
