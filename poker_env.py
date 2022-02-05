@@ -30,7 +30,7 @@ class PokerEnv(gym.Env):
         self.observation_space = spaces.Box(low=-1, high=1, shape=(2,))
         """
         observation space: {
-            ---OLD---
+            ---OUR THOUGHTS---
             
             [own data, eval score, reward],
             ["player 1", action(1-4), (amount of raises if any)],
@@ -128,16 +128,18 @@ class PokerEnv(gym.Env):
                     "street_commits": spaces.Tuple(
                         (spaces.Discrete(max_bet),) * num_players
                     ),
-                }
-        )
-
+                })
         }
             
         action space: {
+            ---OUR THOUGHTS---
             [1, None], call
             [2, 10], raise
             [3, None], check
             [4, None], fold
+            
+            same issue with action space (raise amount)
+            should we decide the raise amount seperately? --> maybe using loss function to calculate best amount
             
             ---FROM neuron_poker---
             FOLD = 0
@@ -163,8 +165,7 @@ class PokerEnv(gym.Env):
             self.action_space = spaces.Discrete(max_bet)
         }
         
-        same issue with action space (raise amount)
-        should we decide the raise amount seperately? --> maybe using loss function to calculate best amount
+
         """
 
     def evaluate(self, data, cards_revealed=3):
@@ -181,6 +182,7 @@ class PokerEnv(gym.Env):
         # evaluate the good move or bad move
 
         """
+        ---OUR THOUGHTS---
         Goal: most chips
         Rounds: Pre-flop, flop, turn, river
 
