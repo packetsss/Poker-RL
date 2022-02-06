@@ -251,6 +251,61 @@ class PokerEnv(gym.Env):
 
         reward output: [-2, 0, 9, -4, 0, -4, 9, -4, -4]
         """
+        
+        """
+        ---Adaith's Design ---
+        We could try basing a seperate design of a reward function based of a simple neural network with data from the following:
+
+        1. Your Pot
+        2. Opponents Pot Size
+        3. Previous Pot Winner's betting amount
+        4. Previous Winner's Hand
+
+        We could base the final node output on binary cross entropy, saying that if you minimised the loss of your own chips or maximized your winnings 
+        it should correspond to a 1, else should be 0;
+
+        base design:
+
+        4 Noded Input --> hidden Layers --> Output Node
+
+        This could be trained on a realtime basis whenever a game is played. As even if the robot loses, this reward function can be updated with the robots moves
+        and the winning players moves.
+
+        Brief Code Design:
+
+        import tensorflow as tf
+        from tensorflow import keras
+        from tensorflow.keras import layers
+        from tensorflow.keras.optimizers.*
+
+        #Function Should be called after 20 games worth of data
+        #Epoch Number should be updated accordingly
+        def rewardTrain(self):
+            #Predefined model which well import
+            model_path = ""
+            model = create_model()
+            model.load_weight(model_path)
+
+            poker_inputs = self.get_input()
+            poker_output = self.get_output()
+
+            cp_callback = callbacks.ModelCheckpoint(filepath= model_path, save_weights_only = True, verbose= someVerboseYouWant)
+
+            model.fit(poker_input, poker_outputs, epochs = 10, callbacks = [cp_callback])
+
+        Brief inital model Desgin
+        Add Layers to the model:
+        def create model:
+            model = models.Sequential([
+                layers.Dense(4, activation="relu"),
+                layers.Dense(128, activation="relu"),
+                layers.Dense(1, activation="sigmoid")
+            ])
+            
+            model.compile(loss='binary_crossentropy',
+                optimizer=RMSprop(lr=0.001),
+                metrics=['accuracy])
+        """
 
         pass
 
