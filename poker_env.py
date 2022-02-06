@@ -295,15 +295,15 @@ class PokerEnv(gym.Env):
 
         Brief inital model Desgin
         Add Layers to the model:
-        def create model:
+        def create_model:
             model_path = ""
             model = models.Sequential([
                 layers.Dense(4, activation="relu"),
                 layers.Dense(128, activation="relu"),
-                layers.Dense(1, activation="sigmoid")
+                layers.Dense(10, activation="relu")
             ])
             
-            model.compile(loss='binary_crossentropy',
+            model.compile(loss='categorical_crossentropy',
                 optimizer=RMSprop(lr=0.001),
                 metrics=['accuracy])
                 
