@@ -195,12 +195,12 @@ class PokerEnv(gym.Env):
 
         Low score + first:
         check -> call
-        
+
         Should we consider actions or not?
 
         ---FROM neuron_poker---
         calculate reward from previous game's winnings?
-        
+
 
         reward = self.funds_history.iloc[-1, self.acting_agent] - self.funds_history.iloc[
                 -2, self.acting_agent]
@@ -210,10 +210,10 @@ class PokerEnv(gym.Env):
         Looks like just getting chip amounts for each player, not sure what this has to do with rewards...
 
         rew = [player.stack for player in self._seats]
-        
+
         ---FROM clubs_gym---
         seems like the reward has nothing to do with the action provided by the model, similar as above...
-        
+
         # pot_commits are pot commits for each player
         def _payouts(self) -> List[int]:
             # players that have folded lose their bets (MOSTLY USED)
@@ -226,8 +226,8 @@ class PokerEnv(gym.Env):
                 payouts = [
                     payout + active * (self.pot - pot_commit)
                     for payout, active, pot_commit in zip(
-                        
-                        payouts, self.active, self.pot_commits 
+
+                        payouts, self.active, self.pot_commits
                     )
                 ]
                 return payouts
@@ -240,7 +240,7 @@ class PokerEnv(gym.Env):
                 ]
                 return payouts
             return payouts
-            
+
         def _eval_round(self):
             # payouts = [0] * self.num_players
             # grab array of hand strength and pot commits
@@ -248,7 +248,7 @@ class PokerEnv(gym.Env):
             # iterate over hand strength and pot commits from smallest to largest
             # give worst position player remainder chips
             # return payouts
-        
+
         reward output: [-2, 0, 9, -4, 0, -4, 9, -4, -4]
         """
 
