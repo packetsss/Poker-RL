@@ -1,10 +1,3 @@
-"""
-This is the game demo(bot) from the texasholdem library
-
-slow but seems to work
-"""
-
-
 import gym
 import numpy as np
 from gym import spaces
@@ -13,7 +6,7 @@ from treys import Evaluator
 from texasholdem import TexasHoldEm
 
 
-from generator import hand_generator
+from card_generator import hand_generator
 
 
 class PokerEnv(gym.Env):
