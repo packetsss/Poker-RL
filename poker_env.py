@@ -10,6 +10,8 @@ import numpy as np
 from gym import spaces
 from treys import Card
 from treys import Evaluator
+from texasholdem import TexasHoldEm
+
 
 from generator import hand_generator
 
@@ -17,17 +19,61 @@ from generator import hand_generator
 class PokerEnv(gym.Env):
     metadata = {"render.modes": ["human", "rgb_array"], "video.frames_per_second": 120}
 
-    def __init__(self):
+    def __init__(self, buy_in=500, big_blind=5, small_blind=2, num_players=2):
         # poker
         self.evaluator = Evaluator()
+        self.small_blind = small_blind
+        self.big_blind = big_blind
+        self.game = TexasHoldEm(
+            buyin=buy_in,
+            big_blind=big_blind,
+            small_blind=small_blind,
+            max_players=num_players,
+        )
+        self.action_to_string = {1: "call", 2: "raise", 3: "check", 4: "fold"}
 
         # TODO: gym environment
         self.spec = None
         self.num_envs = 1
 
         self.reward_range = np.array([-1, 1])
-        self.action_space = spaces.Box(low=-1, high=1, shape=(2,))
-        self.observation_space = spaces.Box(low=-1, high=1, shape=(2,))
+        self.action_space = (
+            spaces.MultiDiscrete(
+                [
+                    4,
+                    buy_in,
+                ],
+                start=1,
+            ),
+        )
+
+        card_space = spaces.Tuple((spaces.Discrete(13), spaces.Discrete(4)))
+        player_card_space = spaces.Tuple((card_space,) * 2)
+        self.observation_space = self.observation_space = spaces.Dict(
+            {
+                "action": (
+                    spaces.MultiDiscrete(
+                        [
+                            4,
+                            buy_in,
+                        ],
+                        start=1,
+                    ),
+                ),
+                "active": spaces.MultiBinary(num_players),
+                # "button": spaces.Discrete(num_players),
+                "call": spaces.Discrete(buy_in),
+                "community_cards": spaces.Tuple((card_space,) * 5),
+                "player_cards": spaces.Tuple((player_card_space,) * num_players),
+                "max_raise": spaces.Discrete(buy_in),
+                "min_raise": spaces.Discrete(buy_in),
+                "pot": spaces.Discrete(buy_in),
+                "player_stacks": spaces.Tuple((spaces.Discrete(buy_in),) * num_players),
+                "stage_bettings": spaces.Tuple(
+                    (spaces.Discrete(buy_in),) * num_players
+                ),
+            }
+        )
         """
         observation space: {
             ---OUR THOUGHTS---
@@ -168,6 +214,7 @@ class PokerEnv(gym.Env):
         
 
         """
+        self.reset()
 
     def evaluate(self, data, cards_revealed=3):
         # 0 - 7462
@@ -254,7 +301,26 @@ class PokerEnv(gym.Env):
 
         pass
 
-    def step(self):
+    def step(self, action):
+        # process action (space)
+        action, val = action
+        if action != 2:
+            val = None
+        else:
+            if self.fresh_start:  # starting and the model choose to raise
+                self.fresh_start = False
+                val = max(5, val)
+            else:  # not starting and the model choose to raise
+                self.current_pot = sum([x.get_total_amount() for x in self.game.pots])
+                previous_bet = self.current_pot - self.previous_pot
+                val = max(previous_bet, val)
+                self.previous_pot = self.current_pot
+
+        # step through simulator
+        self.game.take_action(self.action_to_string[action], val)
+
+        # get obs
+        # get reward
         # return observation, reward, done, info (optional)
         pass
 
@@ -262,7 +328,10 @@ class PokerEnv(gym.Env):
         pass
 
     def reset(self):
-        pass
+        self.game.start_hand()
+        self.fresh_start = True
+        self.previous_pot = self.big_blind + self.small_blind
+        self.current_pot = 0
 
     def close(self):
         # some cleanups

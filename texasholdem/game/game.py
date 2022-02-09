@@ -300,6 +300,7 @@ class TexasHoldEm:
 
         for player_id in self.active_iter(self.btn_loc + 1):
             self.hands[player_id] = self._deck.draw(num=2)
+            print(self.hands[player_id])
 
         # reset history
         self._action = None, None
