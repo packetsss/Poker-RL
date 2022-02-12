@@ -42,7 +42,7 @@ class PokerEnv(gym.Env):
 
         card_space = spaces.Tuple((spaces.Discrete(13), spaces.Discrete(4)))
         player_card_space = spaces.Tuple((card_space,) * 2)
-        self.observation_space = self.observation_space = spaces.Dict(
+        self.observation_space = spaces.Dict(
             {
                 "action": (
                     spaces.MultiDiscrete(
@@ -291,7 +291,7 @@ class PokerEnv(gym.Env):
 
         reward output: [-2, 0, 9, -4, 0, -4, 9, -4, -4]
         """
-        
+
         """
         ---Adaith's Design ---
         We could try basing a seperate design of a reward function based of a simple neural network with data from the following:
@@ -370,6 +370,7 @@ class PokerEnv(gym.Env):
         # step through simulator
         self.game.take_action(self.action_to_string[action], val)
 
+        # opponents term
         # get obs
         # get reward
         # return observation, reward, done, info (optional)

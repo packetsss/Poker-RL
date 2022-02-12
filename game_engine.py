@@ -48,4 +48,4 @@ while game.is_game_running():
 
         
         game.take_action(action, val)
-        print(lines, game.hand_history)
+        # print(lines, game.hand_history)
