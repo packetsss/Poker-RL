@@ -370,7 +370,7 @@ class PokerEnv(gym.Env):
         # step through simulator
         self.game.take_action(self.action_to_string[action], val)
 
-        # opponents term
+        # opponents turn
         # get obs
         # get reward
         # return observation, reward, done, info (optional)
