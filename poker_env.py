@@ -3,6 +3,8 @@ import numpy as np
 from gym import spaces
 from treys import Card
 from treys import Evaluator
+from itertools import groupby
+from operator import itemgetter
 from texasholdem import TexasHoldEm
 
 
@@ -30,29 +32,18 @@ class PokerEnv(gym.Env):
         self.num_envs = 1
 
         self.reward_range = np.array([-1, 1])
-        self.action_space = (
-            spaces.MultiDiscrete(
-                [
-                    4,
-                    buy_in,
-                ],
-                start=1,
-            ),
+        self.action_space = spaces.MultiDiscrete(
+            [
+                3,
+                buy_in,
+            ],
         )
 
         card_space = spaces.Tuple((spaces.Discrete(13), spaces.Discrete(4)))
         player_card_space = spaces.Tuple((card_space,) * 2)
         self.observation_space = spaces.Dict(
             {
-                "action": (
-                    spaces.MultiDiscrete(
-                        [
-                            4,
-                            buy_in,
-                        ],
-                        start=1,
-                    ),
-                ),
+                "action": self.action_space,
                 "active": spaces.MultiBinary(num_players),
                 # "button": spaces.Discrete(num_players),
                 "call": spaces.Discrete(buy_in),
@@ -350,7 +341,24 @@ class PokerEnv(gym.Env):
             model.save(model_path);
         """
 
-        pass
+        # calculate the total number of pot commits for each player
+        pot_commits = {}
+        for d in [pot.player_amounts for pot in self.game.pots]:
+            for key in d:
+                if key in pot_commits:
+                    pot_commits[key] += d[key]
+                else:
+                    pot_commits[key] = d[key]
+        
+        # calculate the payouts
+        payouts = [
+            -1 * pot_commit * (not active)
+            for pot_commit, active in zip(
+                pot_commits, list(self.game.active_iter(self.game.btn_loc + 1))
+            )
+        ]
+        print(pot_commits)
+        return payouts
 
     def step(self, action):
         # process action (space)
@@ -391,6 +399,8 @@ class PokerEnv(gym.Env):
 
 
 if __name__ == "__main__":
-    poker = PokerEnv()
-    print(poker.evaluate(hand_generator(num_players=5), cards_revealed=3))
+    poker = PokerEnv(num_players=6)
+    print(poker.calculate_reward())
+    
+    # print(poker.evaluate(hand_generator(num_players=5), cards_revealed=3))
     # [551, 486, 555, 555, 2153]
