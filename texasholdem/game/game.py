@@ -12,6 +12,7 @@ It also includes the main TexasHoldEm class of the texasholdem package.
 """
 
 from __future__ import annotations
+from copy import deepcopy
 
 import os
 from pathlib import Path
@@ -65,6 +66,7 @@ class Pot:
         self.amount = 0
         self.raised = 0
         self.player_amounts = {}
+        self.player_amounts_without_remove = {}
 
     def chips_to_call(self, player_id: int) -> int:
         """Returns the amount of chips to call for the given player.
@@ -91,6 +93,8 @@ class Pot:
 
         if self.player_amounts[player_id] > self.raised:
             self.raised = self.player_amounts[player_id]
+
+        self.player_amounts_without_remove.update(self.player_amounts)
 
     def get_player_amount(self, player_id: int) -> int:
         """
@@ -120,6 +124,8 @@ class Pot:
         for player_id, player_amount in self.player_amounts.items():
             self.amount += player_amount
             self.player_amounts[player_id] = 0
+
+        self.player_amounts_without_remove.update(self.player_amounts)
 
     def remove_player(self, player_id: int):
         """
@@ -178,6 +184,8 @@ class Pot:
                 overflow = self.get_player_amount(player_id) - self.raised
                 split_pot.player_post(player_id, overflow)
                 self.player_amounts[player_id] -= -overflow
+                
+        self.player_amounts_without_remove.update(self.player_amounts)
 
         return split_pot
 

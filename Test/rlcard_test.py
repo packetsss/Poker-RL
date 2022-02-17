@@ -14,8 +14,8 @@ print(env.state_shape)  # [[2]]
 print(env.action_shape)  # [None]
 
 env.reset()
-print(env.run())
+# print(env.run())
 
-# while True:
-#     obs = env.step(1)
-#     print(obs, env.get_payoffs())
+while True:
+    obs = env.step(1)
+    print(obs, env.get_payoffs())

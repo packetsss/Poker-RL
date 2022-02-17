@@ -6,6 +6,7 @@ from treys import Evaluator
 from itertools import groupby
 from operator import itemgetter
 from texasholdem import TexasHoldEm
+from texasholdem.game.player_state import PlayerState
 
 
 from card_generator import hand_generator
@@ -343,21 +344,51 @@ class PokerEnv(gym.Env):
 
         # calculate the total number of pot commits for each player
         pot_commits = {}
-        for d in [pot.player_amounts for pot in self.game.pots]:
+        for d in [pot.player_amounts_without_remove for pot in self.game.pots]:
             for key in d:
                 if key in pot_commits:
                     pot_commits[key] += d[key]
                 else:
                     pot_commits[key] = d[key]
-        
+
         # calculate the payouts
+        # consider percentage of the player's stack ######
         payouts = [
-            -1 * pot_commit * (not active)
-            for pot_commit, active in zip(
-                pot_commits, list(self.game.active_iter(self.game.btn_loc + 1))
-            )
+            -1 * pot_commit * (active.state == PlayerState.OUT)
+            for pot_commit, active in zip(pot_commits, list(self.game.players))
         ]
-        print(pot_commits)
+
+        # if only one player left give that player all chips ?
+        # TODO...
+        if (
+            sum(
+                list(
+                    map(
+                        lambda player: player.state != PlayerState.OUT,
+                        list(self.game.players),
+                    )
+                )
+            )
+            == 1
+        ):
+
+            # confirm how pot spiltting works (does last player get everything?) 
+            payouts = [
+                payout + (active.state != PlayerState.OUT) * (sum(list(map(lambda x: x.amount, self.game.pots))) - pot_commit)
+                for payout, active, pot_commit in zip(
+                    payouts, list(self.game.players), pot_commits
+                )
+            ]
+            return payouts
+        # if last street played and still multiple players active
+        # elif self.street >= self.num_streets:
+        #     payouts = self._eval_round()
+        #     payouts = [
+        #         payout - pot_commit
+        #         for payout, pot_commit in zip(payouts, self.pot_commits)
+        #     ]
+        #     return payouts
+        print(pot_commits, len(self.game.players))
         return payouts
 
     def step(self, action):
@@ -400,7 +431,49 @@ class PokerEnv(gym.Env):
 
 if __name__ == "__main__":
     poker = PokerEnv(num_players=6)
-    print(poker.calculate_reward())
-    
+
+    from texasholdem import TexasHoldEm
+    from texasholdem.game.action_type import ActionType
+
+    def accept_input(turn, player):
+        args = input(
+            f"Player {player} turn {turn} chips {poker.game.players[poker.game.current_player].chips}:"
+        )
+
+        if " " in args:
+            action_str, val = args.split()
+        else:
+            action_str, val = args, 0
+        action_str = action_str.lower()
+
+        if action_str == "call":
+            return ActionType.CALL, None
+        elif action_str == "fold":
+            return ActionType.FOLD, None
+        elif action_str == "all-in":
+            return ActionType.ALL_IN, None
+        elif action_str == "raise":
+            return ActionType.RAISE, float(val)
+        elif action_str == "check":
+            return ActionType.CHECK, None
+        else:
+            # always invalid
+            return ActionType.RAISE, -1
+
+    while poker.game.is_hand_running():
+        lines = []
+        for i in range(len(poker.game.pots)):
+            lines.append(
+                f"Pot {i}: {poker.game.pots[i].get_total_amount()} Board: {poker.game.board}"
+            )
+
+        action, val = accept_input(poker.game.hand_phase, poker.game.current_player)
+        while not poker.game.validate_move(poker.game.current_player, action, val):
+            print(f"{action} {val} is not valid for player {poker.game.current_player}")
+            action, val = accept_input(poker.game.hand_phase, poker.game.current_player)
+
+        poker.game.take_action(action, val)
+        print(poker.calculate_reward())
+
     # print(poker.evaluate(hand_generator(num_players=5), cards_revealed=3))
     # [551, 486, 555, 555, 2153]
