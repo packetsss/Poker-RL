@@ -12,7 +12,6 @@ It also includes the main TexasHoldEm class of the texasholdem package.
 """
 
 from __future__ import annotations
-from copy import deepcopy
 
 import os
 from pathlib import Path
@@ -94,7 +93,9 @@ class Pot:
         if self.player_amounts[player_id] > self.raised:
             self.raised = self.player_amounts[player_id]
 
-        self.player_amounts_without_remove.update(self.player_amounts)
+        self.player_amounts_without_remove[player_id] = (
+            self.player_amounts_without_remove.get(player_id, 0) + amount
+        )
 
     def get_player_amount(self, player_id: int) -> int:
         """
@@ -124,8 +125,6 @@ class Pot:
         for player_id, player_amount in self.player_amounts.items():
             self.amount += player_amount
             self.player_amounts[player_id] = 0
-
-        self.player_amounts_without_remove.update(self.player_amounts)
 
     def remove_player(self, player_id: int):
         """
@@ -184,8 +183,8 @@ class Pot:
                 overflow = self.get_player_amount(player_id) - self.raised
                 split_pot.player_post(player_id, overflow)
                 self.player_amounts[player_id] -= -overflow
-                
-        self.player_amounts_without_remove.update(self.player_amounts)
+
+            self.player_amounts_without_remove[player_id] -= -overflow
 
         return split_pot
 
@@ -300,6 +299,11 @@ class TexasHoldEm:
 
         # reset pots
         self.pots = [Pot()]
+        
+        # populate the player_amounts_without_remove dict
+        self.pots[0].player_amounts_without_remove = {
+            i: 0 for i in range(self.max_players)
+        }
 
         # deal cards
         self._deck = Deck()

@@ -1,3 +1,4 @@
+import random
 import gym
 import numpy as np
 from gym import spaces
@@ -341,7 +342,6 @@ class PokerEnv(gym.Env):
                 
             model.save(model_path);
         """
-
         # calculate the total number of pot commits for each player
         pot_commits = {}
         for d in [pot.player_amounts_without_remove for pot in self.game.pots]:
@@ -353,32 +353,27 @@ class PokerEnv(gym.Env):
 
         # calculate the payouts
         # consider percentage of the player's stack ######
-        payouts = [
-            -1 * pot_commit * (active.state == PlayerState.OUT)
-            for pot_commit, active in zip(pot_commits, list(self.game.players))
-        ]
+        payouts = {
+            pot_commit[0]: -1
+            * pot_commit[1]
+            * (self.game.players[pot_commit[0]].state == PlayerState.OUT)
+            for pot_commit in pot_commits.items()
+        }
+        player_active_list = {
+            x.player_id: x.state != PlayerState.OUT for x in self.game.players
+        }
+        # print(payouts, player_active_list, pot_commits)
 
-        # if only one player left give that player all chips ?
-        # TODO...
-        if (
-            sum(
-                list(
-                    map(
-                        lambda player: player.state != PlayerState.OUT,
-                        list(self.game.players),
-                    )
-                )
-            )
-            == 1
-        ):
+        # ask adu how raise should work (add up to pot or change pot value to raise value)
+        if sum(player_active_list.values()) == 1:
+            pot_total = sum(list(map(lambda x: x.amount, self.game.pots)))
+            payouts = {
+                player_id: payouts[player_id]
+                + (self.game.players[player_id].state != PlayerState.OUT)
+                * (pot_total - pot_commits[player_id])
+                for player_id in player_active_list.keys()
+            }
 
-            # confirm how pot spiltting works (does last player get everything?) 
-            payouts = [
-                payout + (active.state != PlayerState.OUT) * (sum(list(map(lambda x: x.amount, self.game.pots))) - pot_commit)
-                for payout, active, pot_commit in zip(
-                    payouts, list(self.game.players), pot_commits
-                )
-            ]
             return payouts
         # if last street played and still multiple players active
         # elif self.street >= self.num_streets:
@@ -388,7 +383,7 @@ class PokerEnv(gym.Env):
         #         for payout, pot_commit in zip(payouts, self.pot_commits)
         #     ]
         #     return payouts
-        print(pot_commits, len(self.game.players))
+        # print(pot_commits, len(self.game.players))
         return payouts
 
     def step(self, action):
@@ -435,31 +430,6 @@ if __name__ == "__main__":
     from texasholdem import TexasHoldEm
     from texasholdem.game.action_type import ActionType
 
-    def accept_input(turn, player):
-        args = input(
-            f"Player {player} turn {turn} chips {poker.game.players[poker.game.current_player].chips}:"
-        )
-
-        if " " in args:
-            action_str, val = args.split()
-        else:
-            action_str, val = args, 0
-        action_str = action_str.lower()
-
-        if action_str == "call":
-            return ActionType.CALL, None
-        elif action_str == "fold":
-            return ActionType.FOLD, None
-        elif action_str == "all-in":
-            return ActionType.ALL_IN, None
-        elif action_str == "raise":
-            return ActionType.RAISE, float(val)
-        elif action_str == "check":
-            return ActionType.CHECK, None
-        else:
-            # always invalid
-            return ActionType.RAISE, -1
-
     while poker.game.is_hand_running():
         lines = []
         for i in range(len(poker.game.pots)):
@@ -467,12 +437,28 @@ if __name__ == "__main__":
                 f"Pot {i}: {poker.game.pots[i].get_total_amount()} Board: {poker.game.board}"
             )
 
-        action, val = accept_input(poker.game.hand_phase, poker.game.current_player)
-        while not poker.game.validate_move(poker.game.current_player, action, val):
-            print(f"{action} {val} is not valid for player {poker.game.current_player}")
-            action, val = accept_input(poker.game.hand_phase, poker.game.current_player)
+        while 1:
+            # print(f"{bet} {val} is not valid for player {poker.game.current_player}")
 
-        poker.game.take_action(action, val)
+            rand = random.random()
+            # 15% chance to fold
+            val = None
+            if rand < 0.15:
+                bet = ActionType.FOLD
+            # 80% chance to call
+            elif rand < 0.95:
+                bet = ActionType.CALL
+            # 5% to raise to min_raise
+            else:
+                bet = ActionType.RAISE
+                val = random.randint(5, 30)
+            if poker.game.validate_move(poker.game.current_player, bet, val):
+                break
+
+        print(
+            f"{str(poker.game.hand_phase)[10:]}: Player {poker.game.current_player}, Chips: {poker.game.players[poker.game.current_player].chips}, Action - {str(bet)[11:].capitalize()}{f': {val}' if val else ''}"
+        )
+        poker.game.take_action(bet, val)
         print(poker.calculate_reward())
 
     # print(poker.evaluate(hand_generator(num_players=5), cards_revealed=3))
