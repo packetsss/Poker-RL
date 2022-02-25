@@ -8,6 +8,7 @@ from itertools import groupby
 from operator import itemgetter
 from texasholdem import TexasHoldEm
 from texasholdem.game.action_type import ActionType
+from texasholdem.game.hand_phase import HandPhase
 from texasholdem.game.player_state import PlayerState
 
 
@@ -85,7 +86,7 @@ class PokerEnv(gym.Env):
                     pot_commits[key] = d[key]
 
         # calculate the payouts
-        # consider percentage of the player's stack ######
+        # TODO: consider percentage of the player's stack ######
         payouts = {
             pot_commit[0]: -1
             * pot_commit[1]
@@ -108,15 +109,21 @@ class PokerEnv(gym.Env):
 
             return payouts
         # if last street played and still multiple players active
-        """
-        elif self.street >= self.num_streets:
-            payouts = self._eval_round()
-            payouts = [
-                payout - pot_commit
-                for payout, pot_commit in zip(payouts, self.pot_commits)
-            ]
-            return payouts
-        """
+        elif not self.game.is_hand_running() and not self.game._is_hand_over():
+            winners = self.game.hand_history[HandPhase.SETTLE].winners
+            
+            new_payouts = {}
+            for player_payout in payouts.items():
+                if player_payout[1] != 0:
+                    new_payouts[player_payout[0]] = player_payout[1]
+
+                elif winners.get(player_payout[0]) is not None:
+                    new_payouts[player_payout[0]] = winners.get(player_payout[0])[1]
+
+                else:
+                    new_payouts[player_payout[0]] = -pot_commits[player_payout[0]]
+            return new_payouts
+
         return payouts
 
     def step(self, action):
@@ -170,9 +177,9 @@ if __name__ == "__main__":
         while 1:
             rand = random.random()
             val = None
-            if rand < 0.15:
+            if rand < 0.10:
                 bet = ActionType.FOLD
-            elif rand < 0.95:
+            elif rand < 0.90:
                 bet = ActionType.CALL
             else:
                 bet = ActionType.RAISE
