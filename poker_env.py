@@ -107,11 +107,10 @@ class PokerEnv(gym.Env):
                 for player_id in player_active_dict.keys()
             }
 
-            return payouts
         # if last street played and still multiple players active
         elif not self.game.is_hand_running() and not self.game._is_hand_over():
             winners = self.game.hand_history[HandPhase.SETTLE].winners
-            
+
             new_payouts = {}
             for player_payout in payouts.items():
                 if player_payout[1] != 0:
@@ -122,7 +121,7 @@ class PokerEnv(gym.Env):
 
                 else:
                     new_payouts[player_payout[0]] = -pot_commits[player_payout[0]]
-            return new_payouts
+            payouts = new_payouts
 
         return payouts
 
