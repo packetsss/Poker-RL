@@ -1,3 +1,4 @@
+from math import sqrt
 import random
 import gym
 import numpy as np
@@ -20,6 +21,7 @@ class PokerEnv(gym.Env):
 
     def __init__(self, buy_in=500, big_blind=5, small_blind=2, num_players=2):
         # poker
+        self.buy_in = buy_in
         self.evaluator = Evaluator()
         self.small_blind = small_blind
         self.big_blind = big_blind
@@ -35,7 +37,11 @@ class PokerEnv(gym.Env):
         self.spec = None
         self.num_envs = 1
 
+        # reward
+        self.reward_multiplier = 1.2
         self.reward_range = np.array([-1, 1])
+
+        # spaces
         self.action_space = spaces.MultiDiscrete(
             [
                 3,
@@ -86,24 +92,21 @@ class PokerEnv(gym.Env):
                     pot_commits[key] = d[key]
 
         # calculate the payouts
-        # TODO: consider percentage of the player's stack ######
-        payouts = {
-            pot_commit[0]: -1
-            * pot_commit[1]
-            * (self.game.players[pot_commit[0]].state == PlayerState.OUT)
-            for pot_commit in pot_commits.items()
-        }
         player_active_dict = {
             x.player_id: x.state != PlayerState.OUT for x in self.game.players
         }
+        payouts = {
+            pot_commit[0]: -1 * pot_commit[1] * (not player_active_dict[pot_commit[0]])
+            for pot_commit in pot_commits.items()
+        }
+        winners = None
 
         # ask adu how raise should work (add up to pot or change pot value to raise value)
         if sum(player_active_dict.values()) == 1:
             pot_total = sum(list(map(lambda x: x.amount, self.game.pots)))
             payouts = {
                 player_id: payouts[player_id]
-                + (self.game.players[player_id].state != PlayerState.OUT)
-                * (pot_total - pot_commits[player_id])
+                + player_active_dict[player_id] * (pot_total - pot_commits[player_id])
                 for player_id in player_active_dict.keys()
             }
 
@@ -113,17 +116,39 @@ class PokerEnv(gym.Env):
 
             new_payouts = {}
             for player_payout in payouts.items():
+                # if player folded earlier
                 if player_payout[1] != 0:
                     new_payouts[player_payout[0]] = player_payout[1]
-
+                # if player wins
                 elif winners.get(player_payout[0]) is not None:
                     new_payouts[player_payout[0]] = winners.get(player_payout[0])[1]
-
+                # if player stay to the end and loses
                 else:
                     new_payouts[player_payout[0]] = -pot_commits[player_payout[0]]
             payouts = new_payouts
 
-        return payouts
+        # TODO: consider percentage of the player's stack
+        percent_payouts = {}
+        for player in self.game.players:
+            if winners and winners.get(player.player_id) is not None:
+                payout_percentage = payouts[player.player_id] / (
+                    player.chips - pot_commits[player.player_id]
+                )
+            else:
+                payout_percentage = payouts[player.player_id] / (
+                    player.chips - payouts[player.player_id]
+                )
+
+            percent_payouts[player.player_id] = round(
+                np.clip(
+                    payout_percentage * self.reward_multiplier,
+                    -1,
+                    1,
+                ),
+                3,
+            )
+
+        return percent_payouts
 
     def step(self, action):
         # process action (space)

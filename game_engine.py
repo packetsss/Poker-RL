@@ -3,7 +3,9 @@ from texasholdem.game.action_type import ActionType
 
 
 def accept_input(turn, player):
-    args = input(f"Player {player} turn {turn} chips {game.players[game.current_player].chips}:")
+    args = input(
+        f"Player {player} turn {turn} chips {game.players[game.current_player].chips}:"
+    )
 
     if " " in args:
         action_str, val = args.split()
@@ -37,15 +39,11 @@ while game.is_game_running():
             lines.append(
                 f"Pot {i}: {game.pots[i].get_total_amount()} Board: {game.board}"
             )
-        
 
         action, val = accept_input(game.hand_phase, game.current_player)
         while not game.validate_move(game.current_player, action, val):
             print(f"{action} {val} is not valid for player {game.current_player}")
             action, val = accept_input(game.hand_phase, game.current_player)
 
-        
-
-        
         game.take_action(action, val)
         # print(lines, game.hand_history)
