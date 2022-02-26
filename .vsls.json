@@ -1,8 +1,0 @@
-{
-    "gitignore":"none",
-    "excludeFiles":[
-        "*.p12",
-        "*.cer",
-        "token",
-        ".gitignore"]
-}
