@@ -3,6 +3,25 @@ import numpy as np
 from treys import Evaluator
 from texasholdem.game.action_type import ActionType
 
+class RandomAgent:
+    def __init__(self, game):
+        self.game = game
+
+    def calculate_action(self):
+        while 1:
+            rand = random.random()
+            val = None
+            if rand < 0.10:
+                bet = ActionType.FOLD
+            elif rand < 0.90:
+                bet = ActionType.CALL
+            else:
+                bet = ActionType.RAISE
+                val = random.randint(5, 30)
+            if self.game.validate_move(self.game.current_player, bet, val):
+                break
+
+        return bet, val
 
 class CrammerAgent:
     
@@ -107,7 +126,7 @@ class CrammerAgent:
                     proportion = np.random.beta(self.alpha, self.beta, size=1)
                     chips_bet = int(proportion * curr_player_chips)
                     chips_to_call = self.game.chips_to_call(curr_player_id)
-                    val = max(chips_to_call, min(chips_bet, curr_player_chips))
+                    val = max(chips_to_call, self.game.big_blind, min(chips_bet, curr_player_chips))
                     
             else:  
                 # We need to check how large this difference is. Depending on its size, we need to act accordingly.
@@ -145,8 +164,8 @@ class CrammerAgent:
 
         # Debugging.
         if not self.game.validate_move(curr_player_id, bet, val):
-            print("INVALID MOVE: ", self.game.hand_phase, curr_player_id, bet, val)
-        else:
-            print(self.game.hand_phase, curr_player_id, bet, val)
+            print("INVALID MOVE: ", self.game.hand_phase.name, curr_player_id, bet.name, val)
+        # else:
+        #     print(self.game.hand_phase, curr_player_id, bet, val)
 
         return bet, val
