@@ -171,16 +171,17 @@ class PokerEnv(gym.Env):
         return percent_payouts
 
     def step(self, action):
-        """Standard gym env step function. Each step is a round (e.g. the
-        preflop, flop, turn, river).
 
+        """ Standard gym env step function. Each step is a round (e.g. the
+        preflop, flop, turn, river).
+        
         """
 
         # At the initial call of step, our agent gives an action and a value.
-        #
-        # action in {0: ActionType.CALL,
-        #            1: ActionType.RAISE,
-        #            2: ActionType.CHECK,
+        # 
+        # action in {0: ActionType.CALL, 
+        #            1: ActionType.RAISE, 
+        #            2: ActionType.CHECK, 
         #            3: ActionType.FOLD}
         # val in [0, infty]
         action, val = action
@@ -195,18 +196,19 @@ class PokerEnv(gym.Env):
             done = True
 
         if not done:
-            # Take the other agent actions (and values) in the game.
-            while self.game.current_player != 0:
-                h_bet, h_val = self.hardcoded_players[
-                    self.game.current_player
-                ].calculate_action()
-                self.game.take_action(h_bet, h_val)
-
             # Our agent takes the action.
             self.game.take_action(self.action_to_string[action], val)
 
+            # Take the other agent actions (and values) in the game.
+            while self.game.current_player != 0:
+                h_bet, h_val = self.hardcoded_players[self.game.current_player].calculate_action()
+                self.game.take_action(h_bet, h_val)
+
+
+
         # We need to make the observation!
         # FIGURE OUT OBSERVATION SPACE HERE!
+
 
         reward = self.calculate_reward()
         info = None
@@ -219,6 +221,11 @@ class PokerEnv(gym.Env):
 
     def reset(self):
         self.game.start_hand()
+
+        # Take the other agent actions (and values) in the game.
+        while self.game.current_player != 0:
+            h_bet, h_val = self.hardcoded_players[self.game.current_player].calculate_action()
+            self.game.take_action(h_bet, h_val)
 
     def close(self):
         # some cleanups
