@@ -35,7 +35,12 @@ class PokerEnv(gym.Env):
             max_players=num_players,
         )
 
-        self.action_to_string = {0: ActionType.CALL, 1: ActionType.RAISE, 2: ActionType.CHECK, 3: ActionType.FOLD}
+        self.action_to_string = {
+            0: ActionType.CALL,
+            1: ActionType.RAISE,
+            2: ActionType.CHECK,
+            3: ActionType.FOLD,
+        }
 
         self.cnt = 0
         self.num_hardcoded_players = self.num_players - 1
@@ -46,7 +51,7 @@ class PokerEnv(gym.Env):
         #   2: agent,
         #   3: agent,
         #   4: agent,
-        #   5: agent 
+        #   5: agent
         # }
 
         # gym environment
@@ -90,7 +95,6 @@ class PokerEnv(gym.Env):
     def add_agent(self, agent):
         self.cnt += 1
         self.hardcoded_players[self.cnt] = agent
-
 
     def evaluate(self, data, cards_revealed=3):
         # 0 - 7462
@@ -172,16 +176,16 @@ class PokerEnv(gym.Env):
         return percent_payouts
 
     def step(self, action):
-        """ Standard gym env step function. Each step is a round (e.g. the
+        """Standard gym env step function. Each step is a round (e.g. the
         preflop, flop, turn, river).
-        
+
         """
 
         # At the initial call of step, our agent gives an action and a value.
-        # 
-        # action in {0: ActionType.CALL, 
-        #            1: ActionType.RAISE, 
-        #            2: ActionType.CHECK, 
+        #
+        # action in {0: ActionType.CALL,
+        #            1: ActionType.RAISE,
+        #            2: ActionType.CHECK,
         #            3: ActionType.FOLD}
         # val in [0, infty]
         action, val = action
@@ -198,7 +202,9 @@ class PokerEnv(gym.Env):
         if not done:
             # Take the other agent actions (and values) in the game.
             while self.game.current_player != 0:
-                h_bet, h_val = self.hardcoded_players[self.game.current_player].calculate_action()
+                h_bet, h_val = self.hardcoded_players[
+                    self.game.current_player
+                ].calculate_action()
                 self.game.take_action(h_bet, h_val)
 
             # Our agent takes the action.
@@ -206,7 +212,6 @@ class PokerEnv(gym.Env):
 
         # We need to make the observation!
         # FIGURE OUT OBSERVATION SPACE HERE!
-        
 
         reward = self.calculate_reward()
         info = None
