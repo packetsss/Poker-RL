@@ -1,21 +1,16 @@
-from math import sqrt
-import random
 import gym
+import random
 import numpy as np
 from gym import spaces
-from sqlalchemy import false
 from treys import Card
 from treys import Evaluator
-from itertools import groupby
-from operator import itemgetter
 from texasholdem import TexasHoldEm
 from texasholdem.game.action_type import ActionType
 from texasholdem.game.hand_phase import HandPhase
 from texasholdem.game.player_state import PlayerState
-from agent import RandomAgent, CrammerAgent
-
 
 from card_generator import hand_generator
+from agent import RandomAgent, CrammerAgent
 
 
 class PokerEnv(gym.Env):
