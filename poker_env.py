@@ -3,6 +3,7 @@ import random
 import gym
 import numpy as np
 from gym import spaces
+from sqlalchemy import false
 from treys import Card
 from treys import Evaluator
 from itertools import groupby
@@ -11,6 +12,7 @@ from texasholdem import TexasHoldEm
 from texasholdem.game.action_type import ActionType
 from texasholdem.game.hand_phase import HandPhase
 from texasholdem.game.player_state import PlayerState
+from agent import RandomAgent, CrammerAgent
 
 
 from card_generator import hand_generator
@@ -34,6 +36,18 @@ class PokerEnv(gym.Env):
         )
 
         self.action_to_string = {0: ActionType.CALL, 1: ActionType.RAISE, 2: ActionType.CHECK, 3: ActionType.FOLD}
+
+        self.cnt = 0
+        self.num_hardcoded_players = self.num_players - 1
+        self.hardcoded_players = {}
+        # 0 index reserved for our trained agent.
+        # {
+        #   1: agent,
+        #   2: agent,
+        #   3: agent,
+        #   4: agent,
+        #   5: agent 
+        # }
 
         # gym environment
         self.spec = None
@@ -72,6 +86,11 @@ class PokerEnv(gym.Env):
         )
 
         self.reset()
+
+    def add_agent(self, agent):
+        self.cnt += 1
+        self.hardcoded_players[self.cnt] = agent
+
 
     def evaluate(self, data, cards_revealed=3):
         # 0 - 7462
@@ -171,18 +190,26 @@ class PokerEnv(gym.Env):
         if action != 2:
             val = None
 
-        # Take the agent's action (and value) in the game.
-        self.game.take_action(self.action_to_string[action], val)
+        if self.game.is_hand_running():
+            done = False
+        else:
+            done = True
 
-        # Now we need to create the observations, return the reward, whether
-        # the game is done or not, and some misc info!
-        # And also, we need to code up our opponents.
+        if not done:
+            # Take the other agent actions (and values) in the game.
+            while self.game.current_player != 0:
+                h_bet, h_val = self.hardcoded_players[self.game.current_player].calculate_action()
+                self.game.take_action(h_bet, h_val)
 
-        ################ CODING UP THE HARDCODED PLAYERS ################
-        # I'll move this to the init method after.
-        num_hardcoded_players = self.num_players - 1
+            # Our agent takes the action.
+            self.game.take_action(self.action_to_string[action], val)
 
+        # We need to make the observation!
+        # FIGURE OUT OBSERVATION SPACE HERE!
+        
 
+        reward = self.calculate_reward()
+        info = None
 
         # return observation, reward, done, info (optional)
         pass
@@ -192,9 +219,6 @@ class PokerEnv(gym.Env):
 
     def reset(self):
         self.game.start_hand()
-        self.fresh_start = True
-        self.previous_pot = self.big_blind + self.small_blind
-        self.current_pot = 0
 
     def close(self):
         # some cleanups
