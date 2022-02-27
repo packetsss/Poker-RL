@@ -19,19 +19,21 @@ from card_generator import hand_generator
 class PokerEnv(gym.Env):
     metadata = {"render.modes": ["human", "rgb_array"], "video.frames_per_second": 120}
 
-    def __init__(self, buy_in=500, big_blind=5, small_blind=2, num_players=2):
+    def __init__(self, buy_in=500, big_blind=5, small_blind=2, num_players=6):
         # poker
         self.buy_in = buy_in
         self.evaluator = Evaluator()
         self.small_blind = small_blind
         self.big_blind = big_blind
+        self.num_players = num_players  # num_players - 1 == harcoded players.
         self.game = TexasHoldEm(
             buyin=buy_in,
             big_blind=big_blind,
             small_blind=small_blind,
             max_players=num_players,
         )
-        self.action_to_string = {1: "call", 2: "raise", 3: "check", 4: "fold"}
+
+        self.action_to_string = {0: ActionType.CALL, 1: ActionType.RAISE, 2: ActionType.CHECK, 3: ActionType.FOLD}
 
         # gym environment
         self.spec = None
@@ -44,7 +46,7 @@ class PokerEnv(gym.Env):
         # spaces
         self.action_space = spaces.MultiDiscrete(
             [
-                3,
+                4,
                 buy_in,
             ],
         )
@@ -151,26 +153,37 @@ class PokerEnv(gym.Env):
         return percent_payouts
 
     def step(self, action):
-        # process action (space)
+        """ Standard gym env step function. Each step is a round (e.g. the
+        preflop, flop, turn, river).
+        
+        """
+
+        # At the initial call of step, our agent gives an action and a value.
+        # 
+        # action in {0: ActionType.CALL, 
+        #            1: ActionType.RAISE, 
+        #            2: ActionType.CHECK, 
+        #            3: ActionType.FOLD}
+        # val in [0, infty]
         action, val = action
+
+        # If action is not raise, then val is None.
         if action != 2:
             val = None
-        else:
-            if self.fresh_start:  # starting and the model choose to raise
-                self.fresh_start = False
-                val = max(5, val)
-            else:  # not starting and the model choose to raise
-                self.current_pot = sum([x.get_total_amount() for x in self.game.pots])
-                previous_bet = self.current_pot - self.previous_pot
-                val = max(previous_bet, val)
-                self.previous_pot = self.current_pot
 
-        # step through simulator
+        # Take the agent's action (and value) in the game.
         self.game.take_action(self.action_to_string[action], val)
 
-        # opponents turn
-        # get obs
-        # get reward
+        # Now we need to create the observations, return the reward, whether
+        # the game is done or not, and some misc info!
+        # And also, we need to code up our opponents.
+
+        ################ CODING UP THE HARDCODED PLAYERS ################
+        # I'll move this to the init method after.
+        num_hardcoded_players = self.num_players - 1
+
+
+
         # return observation, reward, done, info (optional)
         pass
 
