@@ -222,10 +222,10 @@ class PokerEnv(gym.Env):
     def reset(self):
         self.game.start_hand()
 
-        # Take the other agent actions (and values) in the game.
-        while self.game.current_player != 0:
-            h_bet, h_val = self.hardcoded_players[self.game.current_player].calculate_action()
-            self.game.take_action(h_bet, h_val)
+        # # Take the other agent actions (and values) in the game.
+        # while self.game.current_player != 0:
+        #     h_bet, h_val = self.hardcoded_players[self.game.current_player].calculate_action()
+        #     self.game.take_action(h_bet, h_val)
 
     def close(self):
         # some cleanups

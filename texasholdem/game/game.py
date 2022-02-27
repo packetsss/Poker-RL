@@ -307,12 +307,14 @@ class TexasHoldEm:
 
         # deal cards
         self._deck = Deck()
+        self.community_cards = self._deck.community_cards.copy()
+
         self.hands = {}
         self.board = []
 
         for player_id in self.active_iter(self.btn_loc + 1):
             self.hands[player_id] = self._deck.draw(num=2)
-            print(self.hands[player_id])
+            # print(self.hands[player_id])
 
         # reset history
         self._action = None, None
@@ -536,7 +538,7 @@ class TexasHoldEm:
 
             # make sure there is 5 cards on the board
             if len(self.board) < 5:
-                new_cards = self._deck.draw(num=5 - len(self.board))
+                new_cards = self._deck.draw(num=5 - len(self.board), draw_from_community=True)
                 settle_history.new_cards.extend(new_cards)
                 self.board.extend(new_cards)
 
@@ -722,7 +724,7 @@ class TexasHoldEm:
             raise ValueError(f"Hand phase mismatch: expected {self.hand_phase}")
 
         # add new cards to the board
-        new_cards = self._deck.draw(num=hand_phase.new_cards())
+        new_cards = self._deck.draw(num=hand_phase.new_cards(), draw_from_community=True)
         self.hand_history[hand_phase] = BettingRoundHistory(
             new_cards=new_cards, actions=[]
         )

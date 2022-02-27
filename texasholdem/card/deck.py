@@ -19,6 +19,8 @@ class Deck:
     def __init__(self):
         self.cards = Deck._get_full_deck()
         self.shuffle()
+        self.community_cards = self.cards[:5]
+        self.cards = self.cards[5:]
 
     def shuffle(self) -> None:
         """
@@ -27,7 +29,7 @@ class Deck:
         """
         random.shuffle(self.cards)
 
-    def draw(self, num=1) -> List[Card]:
+    def draw(self, num=1, draw_from_community=False) -> List[Card]:
         """
         Draw card(s) from the deck. These cards leave the deck and are not saved.
 
@@ -43,9 +45,12 @@ class Deck:
             raise ValueError(
                 f"Cannot draw {num} cards from deck of size {len(self.cards)}"
             )
-
-        cards = self.cards[:num]
-        self.cards = self.cards[num:]
+        if draw_from_community:
+            cards = self.community_cards[:num]
+            self.community_cards = self.community_cards[num:]
+        else:
+            cards = self.cards[:num]
+            self.cards = self.cards[num:]
         return cards
 
     def __str__(self) -> str:

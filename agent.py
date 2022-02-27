@@ -65,6 +65,8 @@ class CrammerAgent:
             # Possible Actions can be one of the 2 below:
             # [<ActionType.RAISE: 1>, <ActionType.CHECK: 4>, <ActionType.FOLD: 5>]
             # [<ActionType.RAISE: 1>, <ActionType.CALL: 3>, <ActionType.FOLD: 5>]
+            
+            # print(self.game.community_cards)
 
             rand = random.random()
             val = None
