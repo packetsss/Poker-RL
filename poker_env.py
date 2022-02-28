@@ -96,11 +96,11 @@ class PokerEnv(gym.Env):
         pot_commits = {}
         for pot in self.game.pots:
             player_amount = pot.player_amounts_without_remove
-            for key in player_amount:
-                if key in pot_commits:
-                    pot_commits[key] += player_amount[key]
+            for player_id in player_amount:
+                if player_id in pot_commits:
+                    pot_commits[player_id] += player_amount[player_id]
                 else:
-                    pot_commits[key] = player_amount[key]
+                    pot_commits[player_id] = player_amount[player_id]
         # calculate the payouts
         player_active_dict = {
             x.player_id: x.state != PlayerState.OUT for x in self.game.players
