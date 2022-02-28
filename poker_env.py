@@ -1,15 +1,16 @@
+import cProfile
+import pathlib
+import pstats
 import gym
 import random
 import numpy as np
 from gym import spaces
-from treys import Card
-from treys import Evaluator
+
 from texasholdem import TexasHoldEm
 from texasholdem.game.action_type import ActionType
 from texasholdem.game.hand_phase import HandPhase
 from texasholdem.game.player_state import PlayerState
 
-from card_generator import hand_generator
 from agent import RandomAgent, CrammerAgent
 
 
@@ -19,10 +20,9 @@ class PokerEnv(gym.Env):
     def __init__(self, buy_in=500, big_blind=5, small_blind=2, num_players=6):
         # poker
         self.buy_in = buy_in
-        self.evaluator = Evaluator()
         self.small_blind = small_blind
         self.big_blind = big_blind
-        self.num_players = num_players  # num_players - 1 == harcoded players.
+        self.num_players = num_players  # num_players - 1 == hardcoded players
         self.game = TexasHoldEm(
             buyin=buy_in,
             big_blind=big_blind,
@@ -91,26 +91,16 @@ class PokerEnv(gym.Env):
         self.cnt += 1
         self.hardcoded_players[self.cnt] = agent
 
-    def evaluate(self, data, cards_revealed=3):
-        # 0 - 7462
-        community_cards = [Card.new(x) for x in data[0][0:cards_revealed]]
-        score_list = []
-        for x in data[1]:
-            hand = [Card.new(y) for y in x]
-            score_list.append(7463 - self.evaluator.evaluate(community_cards, hand))
-
-        return score_list
-
     def calculate_reward(self):
         # calculate the total number of pot commits for each player
         pot_commits = {}
-        for d in [pot.player_amounts_without_remove for pot in self.game.pots]:
-            for key in d:
+        for pot in self.game.pots:
+            player_amount = pot.player_amounts_without_remove
+            for key in player_amount:
                 if key in pot_commits:
-                    pot_commits[key] += d[key]
+                    pot_commits[key] += player_amount[key]
                 else:
-                    pot_commits[key] = d[key]
-
+                    pot_commits[key] = player_amount[key]
         # calculate the payouts
         player_active_dict = {
             x.player_id: x.state != PlayerState.OUT for x in self.game.players
@@ -160,10 +150,12 @@ class PokerEnv(gym.Env):
                 )
 
             percent_payouts[player.player_id] = round(
-                np.clip(
-                    payout_percentage * self.reward_multiplier,
+                max(
+                    min(
+                        payout_percentage * self.reward_multiplier,
+                        1,
+                    ),
                     -1,
-                    1,
                 ),
                 3,
             )
@@ -171,17 +163,15 @@ class PokerEnv(gym.Env):
         return percent_payouts
 
     def step(self, action):
-
-        """ Standard gym env step function. Each step is a round (e.g. the
-        preflop, flop, turn, river).
-        
+        """
+        Standard gym env step function. Each step is a round of everyone has placed their bets
         """
 
         # At the initial call of step, our agent gives an action and a value.
-        # 
-        # action in {0: ActionType.CALL, 
-        #            1: ActionType.RAISE, 
-        #            2: ActionType.CHECK, 
+        #
+        # action in {0: ActionType.CALL,
+        #            1: ActionType.RAISE,
+        #            2: ActionType.CHECK,
         #            3: ActionType.FOLD}
         # val in [0, infty]
         action, val = action
@@ -201,14 +191,13 @@ class PokerEnv(gym.Env):
 
             # Take the other agent actions (and values) in the game.
             while self.game.current_player != 0:
-                h_bet, h_val = self.hardcoded_players[self.game.current_player].calculate_action()
+                h_bet, h_val = self.hardcoded_players[
+                    self.game.current_player
+                ].calculate_action()
                 self.game.take_action(h_bet, h_val)
-
-
 
         # We need to make the observation!
         # FIGURE OUT OBSERVATION SPACE HERE!
-
 
         reward = self.calculate_reward()
         info = None
@@ -232,7 +221,7 @@ class PokerEnv(gym.Env):
         pass
 
 
-if __name__ == "__main__":
+def main():
     poker = PokerEnv(num_players=6)
 
     while poker.game.is_hand_running():
@@ -260,3 +249,8 @@ if __name__ == "__main__":
         )
         poker.game.take_action(bet, val)
         print(poker.calculate_reward())
+
+
+if __name__ == "__main__":
+    # function runtime: 0.00184 s (pretty fast)
+    main()
