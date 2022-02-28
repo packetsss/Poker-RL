@@ -252,5 +252,5 @@ def main():
 
 
 if __name__ == "__main__":
-    # function runtime: 0.00184 s (pretty fast)
+    # function runtime: 0.00184 s (pretty fast for 1 game/hand)
     main()
