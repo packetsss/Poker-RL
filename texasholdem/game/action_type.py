@@ -5,7 +5,7 @@ The ActionType module, enum that represents all possible actions.
 from enum import Enum, auto
 
 
-class ActionType(Enum):
+class ActionType(Enum): 
     """An enum representing the types of actions a player can take."""
 
     RAISE = auto()

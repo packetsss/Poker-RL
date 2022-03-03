@@ -1,14 +1,12 @@
-import cProfile
-import pathlib
-import pstats
 import gym
 import random
 import numpy as np
 from gym import spaces
 
 from texasholdem import TexasHoldEm
-from texasholdem.game.action_type import ActionType
+from texasholdem.game.game import Player
 from texasholdem.game.hand_phase import HandPhase
+from texasholdem.game.action_type import ActionType
 from texasholdem.game.player_state import PlayerState
 
 from agent import RandomAgent, CrammerAgent
@@ -36,6 +34,25 @@ class PokerEnv(gym.Env):
             2: ActionType.CHECK,
             3: ActionType.FOLD,
         }
+
+        self.string_to_action = {
+            ActionType.CALL: 0,
+            ActionType.RAISE: 1,
+            ActionType.CHECK: 2,
+            ActionType.FOLD: 3,
+        }
+
+        self.suit_to_int = {
+            "s": 1,  # spades
+            "h": 2,  # hearts
+            "d": 3,  # diamonds
+            "c": 4,  # clubs
+        }
+
+        self.card_num_to_int = {"T": 9, "J": 10, "Q": 11, "K": 12, "A": 13}
+
+        self.max_value = buy_in * num_players
+        self.previous_round_history = None
 
         self.cnt = 0
         self.num_hardcoded_players = self.num_players - 1
@@ -65,23 +82,30 @@ class PokerEnv(gym.Env):
             ],
         )
 
-        card_space = spaces.Tuple((spaces.Discrete(13), spaces.Discrete(4)))
+        card_space = spaces.Tuple((spaces.Discrete(14), spaces.Discrete(5)))
         player_card_space = spaces.Tuple((card_space,) * 2)
         self.observation_space = spaces.Dict(
             {
-                "action": self.action_space,
-                "active": spaces.MultiBinary(num_players),
-                # "button": spaces.Discrete(num_players),
-                "call": spaces.Discrete(buy_in),
-                "community_cards": spaces.Tuple((card_space,) * 5),
-                "player_cards": spaces.Tuple((player_card_space,) * num_players),
-                "max_raise": spaces.Discrete(buy_in),
-                "min_raise": spaces.Discrete(buy_in),
-                "pot": spaces.Discrete(buy_in),
-                "player_stacks": spaces.Tuple((spaces.Discrete(buy_in),) * num_players),
+                "actions": spaces.Tuple(
+                    (self.action_space,) * self.num_hardcoded_players
+                ),  # all opponents actions
+                "active": spaces.MultiBinary(num_players),  # [0, 1, 1, 0, 1, 0]
+                "chips": spaces.Tuple(
+                    (spaces.Discrete(self.max_value),) * self.num_hardcoded_players
+                ),  # every player's chips
+                "community_cards": spaces.Tuple((card_space,) * 5),  # ((1, 2), ...)
+                "player_cards": spaces.Tuple(
+                    (player_card_space,) * num_players
+                ),  # ((1, 2), (3, 2))
+                "max_raise": spaces.Discrete(self.max_value),  # player.chips
+                "min_raise": spaces.Discrete(self.big_blind),
+                "pot": spaces.Discrete(self.max_value),  # pot.amount
+                "player_stacks": spaces.Tuple(
+                    (spaces.Discrete(self.max_value),) * num_players
+                ),  # pot_commits for every player in the whole game
                 "stage_bettings": spaces.Tuple(
-                    (spaces.Discrete(buy_in),) * num_players
-                ),
+                    (spaces.Discrete(self.max_value),) * num_players
+                ),  # pot_commits for every player in the current stage
             }
         )
 
@@ -159,8 +183,78 @@ class PokerEnv(gym.Env):
                 ),
                 3,
             )
-
         return percent_payouts
+
+    def get_observations(self):
+        """
+        "actions": spaces.Tuple(
+            (self.action_space,) * self.num_hardcoded_players
+        ),  # all opponents actions
+        "active": spaces.MultiBinary(num_players),  # [0, 1, 1, 0, 1, 0]
+        "chips": spaces.Tuple(
+            (spaces.Discrete(self.max_value),) * self.num_hardcoded_players
+        ),  # every player's chips
+        "community_cards": spaces.Tuple((card_space,) * 5),  # ((1, 2), ...)
+        "player_cards": spaces.Tuple(
+            (player_card_space,) * num_players
+        ),  # ((1, 2), (3, 2))
+        "max_raise": spaces.Discrete(self.max_value),  # player.chips
+        "min_raise": spaces.Discrete(self.big_blind),
+        "pot": spaces.Discrete(self.max_value),  # pot.amount
+        "player_stacks": spaces.Tuple(
+            (spaces.Discrete(self.max_value),) * num_players
+        ),  # pot_commits for every player in the whole game
+        "stage_bettings": spaces.Tuple(
+            (spaces.Discrete(self.max_value),) * num_players
+        ),  # pot_commits for every player in the current stage
+
+        """
+        observations = {}
+        current_round_history = self.game.hand_history[self.game.hand_phase]
+        if self.game.hand_phase == HandPhase.PREHAND:
+            current_round_history = self.previous_round_history
+
+        actions = list(
+            map(
+                lambda x: self.string_to_action[x.action_type],
+                current_round_history.actions,
+            )
+        )
+
+        active = []
+        chips = []
+        winners = None
+        if not self.game.is_hand_running() and not self.game._is_hand_over():
+            winners = self.game.hand_history[HandPhase.SETTLE].winners
+            # modify it later
+            active = [1, 0, 0, 0, 0, 0]
+
+        for x in self.game.players:
+            if winners is None:
+                active.append(int(x.state != PlayerState.OUT))
+            chips.append(x.chips)
+
+        community_cards = [(0, 0)] * 5
+        for i in range(len(self.game.board)):
+            card = list(str(self.game.board[i]))
+            if self.card_num_to_int.get(card[0], 0):
+                card[0] = self.card_num_to_int[card[0]]
+            else:
+                card[0] = int(card[0]) - 1
+
+            card[1] = self.suit_to_int[card[1]]
+            community_cards[i] = tuple(card)
+
+        observations.update(
+            actions=actions,
+            active=active,
+            chips=chips,
+            community_cards=tuple(community_cards),
+        )
+
+        # print(self.game.hand_history[self.game.hand_phase])
+        self.previous_round_history = current_round_history
+        return observations
 
     def step(self, action):
         """
@@ -179,11 +273,25 @@ class PokerEnv(gym.Env):
         # If action is not raise, then val is None.
         if action != 2:
             val = None
-
-        if self.game.is_hand_running():
-            done = False
         else:
-            done = True
+            current_player: Player = list(
+                filter(
+                    lambda x: x.player_id == self.game.current_player,
+                    self.game.players,
+                )
+            )[0]
+            # starting and the model choose to raise
+            if self.fresh_start:
+                self.fresh_start = False
+                val = min(max(self.big_blind, val), current_player.chips)
+
+            # not starting and the model choose to raise
+            else:
+                previous_pot_commit = self.game.pots[0].raised
+                val = min(max(previous_pot_commit, val), current_player.chips)
+
+            # make sure we all that to the prev commits
+            val += previous_pot_commit
 
         if not done:
             # Our agent takes the action.
@@ -199,11 +307,13 @@ class PokerEnv(gym.Env):
         # We need to make the observation!
         # FIGURE OUT OBSERVATION SPACE HERE!
 
+        observation = self.get_observations()
+        done = not self.game.is_hand_running()
         reward = self.calculate_reward()
         info = None
 
         # return observation, reward, done, info (optional)
-        pass
+        return observation, reward, done, info
 
     def render(self):
         pass
@@ -248,7 +358,8 @@ def main():
             f"{str(poker.game.hand_phase)[10:]}: Player {poker.game.current_player}, Chips: {poker.game.players[poker.game.current_player].chips}, Action - {str(bet)[11:].capitalize()}{f': {val}' if val else ''}"
         )
         poker.game.take_action(bet, val)
-        print(poker.calculate_reward())
+        # print(poker.calculate_reward())
+        print(poker.get_observations())
 
 
 if __name__ == "__main__":
