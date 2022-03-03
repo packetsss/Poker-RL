@@ -268,7 +268,9 @@ class PokerEnv(gym.Env):
         #            2: ActionType.CHECK,
         #            3: ActionType.FOLD}
         # val in [0, infty]
+        
         action, val = action
+        done = not self.game.is_hand_running()
 
         # If action is not raise, then val is None.
         if action != 2:
@@ -308,7 +310,7 @@ class PokerEnv(gym.Env):
         # FIGURE OUT OBSERVATION SPACE HERE!
 
         observation = self.get_observations()
-        done = not self.game.is_hand_running()
+        
         reward = self.calculate_reward()
         info = None
 
