@@ -257,6 +257,19 @@ class History:
     turn: Optional[BettingRoundHistory] = None
     river: Optional[BettingRoundHistory] = None
 
+    def get_last_history(self):
+        for history_item in reversed(
+            [
+                self.prehand,
+                self.preflop,
+                self.flop,
+                self.turn,
+                self.river,
+            ]
+        ):
+            if history_item is not None:
+                return history_item
+
     def to_string(self) -> str:
         """
         Returns the string representation of the hand history, including the blind sizes,

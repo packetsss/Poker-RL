@@ -28,14 +28,14 @@ class PokerEnv(gym.Env):
             max_players=num_players,
         )
 
-        self.action_to_string = {
+        self.string_to_action = {
             0: ActionType.CALL,
             1: ActionType.RAISE,
             2: ActionType.CHECK,
             3: ActionType.FOLD,
         }
 
-        self.string_to_action = {
+        self.action_to_string = {
             ActionType.CALL: 0,
             ActionType.RAISE: 1,
             ActionType.CHECK: 2,
@@ -50,6 +50,8 @@ class PokerEnv(gym.Env):
         }
 
         self.card_num_to_int = {"T": 9, "J": 10, "Q": 11, "K": 12, "A": 13}
+
+        self.fresh_start = True
 
         self.max_value = buy_in * num_players
         self.previous_round_history = None
@@ -83,7 +85,6 @@ class PokerEnv(gym.Env):
         )
 
         card_space = spaces.Tuple((spaces.Discrete(14), spaces.Discrete(5)))
-        player_card_space = spaces.Tuple((card_space,) * 2)
         self.observation_space = spaces.Dict(
             {
                 "actions": spaces.Tuple(
@@ -94,9 +95,7 @@ class PokerEnv(gym.Env):
                     (spaces.Discrete(self.max_value),) * self.num_hardcoded_players
                 ),  # every player's chips
                 "community_cards": spaces.Tuple((card_space,) * 5),  # ((1, 2), ...)
-                "player_cards": spaces.Tuple(
-                    (player_card_space,) * num_players
-                ),  # ((1, 2), (3, 2))
+                "player_card": spaces.Tuple((card_space,) * 2),  # (3, 2)
                 "max_raise": spaces.Discrete(self.max_value),  # player.chips
                 "min_raise": spaces.Discrete(self.big_blind),
                 "pot": spaces.Discrete(self.max_value),  # pot.amount
@@ -109,23 +108,15 @@ class PokerEnv(gym.Env):
             }
         )
 
+        self.add_agent()
         self.reset()
 
-    def add_agent(self, agent):
-        self.cnt += 1
-        self.hardcoded_players[self.cnt] = agent
+    def add_agent(self):
+        for i in range(self.num_players):
+            self.hardcoded_players[i] = RandomAgent(self.game)
 
-    def calculate_reward(self):
+    def calculate_reward(self, pot_commits: dict):
         # calculate the total number of pot commits for each player
-        pot_commits = {}
-        for pot in self.game.pots:
-            player_amount = pot.player_amounts_without_remove
-            for player_id in player_amount:
-                if player_id in pot_commits:
-                    pot_commits[player_id] += player_amount[player_id]
-                else:
-                    pot_commits[player_id] = player_amount[player_id]
-        # calculate the payouts
         player_active_dict = {
             x.player_id: x.state != PlayerState.OUT for x in self.game.players
         }
@@ -161,7 +152,7 @@ class PokerEnv(gym.Env):
                     new_payouts[player_payout[0]] = -pot_commits[player_payout[0]]
             payouts = new_payouts
 
-        # TODO: consider percentage of the player's stack
+        # consider percentage of the player's stack
         percent_payouts = {}
         for player in self.game.players:
             if winners and winners.get(player.player_id) is not None:
@@ -185,7 +176,20 @@ class PokerEnv(gym.Env):
             )
         return percent_payouts
 
-    def get_observations(self):
+    def card_to_observation(self, card):
+        card = list(str(card))
+        if self.card_num_to_int.get(card[0], 0):
+            card[0] = self.card_num_to_int[card[0]]
+        else:
+            card[0] = int(card[0]) - 1
+
+        card[1] = self.suit_to_int[card[1]]
+
+        return tuple(card)
+
+    def get_observations(
+        self, current_player_id: int, pot_commits: dict, stage_pot_commits: dict
+    ):
         """
         "actions": spaces.Tuple(
             (self.action_space,) * self.num_hardcoded_players
@@ -195,9 +199,7 @@ class PokerEnv(gym.Env):
             (spaces.Discrete(self.max_value),) * self.num_hardcoded_players
         ),  # every player's chips
         "community_cards": spaces.Tuple((card_space,) * 5),  # ((1, 2), ...)
-        "player_cards": spaces.Tuple(
-            (player_card_space,) * num_players
-        ),  # ((1, 2), (3, 2))
+        "player_card": spaces.Tuple((card_space,) * 2),  # (3, 2)
         "max_raise": spaces.Discrete(self.max_value),  # player.chips
         "min_raise": spaces.Discrete(self.big_blind),
         "pot": spaces.Discrete(self.max_value),  # pot.amount
@@ -212,11 +214,11 @@ class PokerEnv(gym.Env):
         observations = {}
         current_round_history = self.game.hand_history[self.game.hand_phase]
         if self.game.hand_phase == HandPhase.PREHAND:
-            current_round_history = self.previous_round_history
+            current_round_history = self.game.hand_history.get_last_history()
 
         actions = list(
             map(
-                lambda x: self.string_to_action[x.action_type],
+                lambda x: self.action_to_string[x.action_type],
                 current_round_history.actions,
             )
         )
@@ -236,82 +238,115 @@ class PokerEnv(gym.Env):
 
         community_cards = [(0, 0)] * 5
         for i in range(len(self.game.board)):
-            card = list(str(self.game.board[i]))
-            if self.card_num_to_int.get(card[0], 0):
-                card[0] = self.card_num_to_int[card[0]]
-            else:
-                card[0] = int(card[0]) - 1
+            card = self.game.board[i]
 
-            card[1] = self.suit_to_int[card[1]]
-            community_cards[i] = tuple(card)
+            community_cards[i] = self.card_to_observation(card)
+
+        player_card = ((0, 0),) * 2
+        if self.game.hand_phase != HandPhase.PREFLOP:
+            player_card = tuple(
+                map(
+                    lambda x: self.card_to_observation(x),
+                    self.game.hands[current_player_id],
+                )
+            )
 
         observations.update(
-            actions=actions,
-            active=active,
-            chips=chips,
+            # concerned about dynamic actions (size will keep changing)
+            actions=tuple(actions),
+            active=tuple(active),
+            chips=tuple(chips),
             community_cards=tuple(community_cards),
+            player_card=player_card,
+            max_raise=self.game.players[current_player_id].chips,
+            min_raise=self.game.pots[0].raised,
+            pot=sum(map(lambda x: x.amount, self.game.pots)),
+            player_stacks=tuple(pot_commits.values()),
+            stage_bettings=tuple(stage_pot_commits.values()),
         )
 
         # print(self.game.hand_history[self.game.hand_phase])
-        self.previous_round_history = current_round_history
+        # self.previous_round_history = current_round_history
+        # print(self.previous_round_history)
         return observations
 
-    def step(self, action):
+    def step(self, action, debug=False):
         """
         Standard gym env step function. Each step is a round of everyone has placed their bets
         """
 
-        # At the initial call of step, our agent gives an action and a value.
-        #
-        # action in {0: ActionType.CALL,
-        #            1: ActionType.RAISE,
-        #            2: ActionType.CHECK,
-        #            3: ActionType.FOLD}
-        # val in [0, infty]
-        
         action, val = action
-        done = not self.game.is_hand_running()
+        current_player: Player = list(
+            filter(
+                lambda x: x.player_id == self.game.current_player,
+                self.game.players,
+            )
+        )[0]
 
-        # If action is not raise, then val is None.
-        if action != 2:
+        if action != 1:
             val = None
         else:
-            current_player: Player = list(
-                filter(
-                    lambda x: x.player_id == self.game.current_player,
-                    self.game.players,
-                )
-            )[0]
-            # starting and the model choose to raise
+            # start of the game and the model choose to raise
+            previous_pot_commit = self.game.pots[0].raised
             if self.fresh_start:
                 self.fresh_start = False
                 val = min(max(self.big_blind, val), current_player.chips)
 
-            # not starting and the model choose to raise
+            # middle of the game and the model choose to raise
             else:
-                previous_pot_commit = self.game.pots[0].raised
+
                 val = min(max(previous_pot_commit, val), current_player.chips)
 
-            # make sure we all that to the prev commits
+                # make sure we add raise value to the prev commits since the game simulator is calculate raise differently
             val += previous_pot_commit
 
+        action = self.string_to_action[action]
+        if debug:
+            print(
+                f"{str(self.game.hand_phase)[10:]}: Player {self.game.current_player}, Chips: {self.game.players[self.game.current_player].chips}, Action - {str(action)[11:].capitalize()}{f': {val}' if val else ''}"
+            )
+        # Our agent takes the action.
+        self.game.take_action(action, val)
+        done = not self.game.is_hand_running()
         if not done:
-            # Our agent takes the action.
-            self.game.take_action(self.action_to_string[action], val)
-
             # Take the other agent actions (and values) in the game.
-            while self.game.current_player != 0:
-                h_bet, h_val = self.hardcoded_players[
+            while self.game.current_player != 0 and not done:
+                action, val = self.hardcoded_players[
                     self.game.current_player
                 ].calculate_action()
-                self.game.take_action(h_bet, h_val)
+                if debug:
+                    print(
+                        f"{str(self.game.hand_phase)[10:]}: Player {self.game.current_player}, Chips: {self.game.players[self.game.current_player].chips}, Action - {str(action)[11:].capitalize()}{f': {val}' if val else ''}"
+                    )
+
+                self.game.take_action(action, val)
+                done = not self.game.is_hand_running()
 
         # We need to make the observation!
         # FIGURE OUT OBSERVATION SPACE HERE!
 
-        observation = self.get_observations()
-        
-        reward = self.calculate_reward()
+        pot_commits = {}
+        stage_pot_commits = {}
+        for pot in self.game.pots:
+            player_amount = pot.player_amounts_without_remove
+            stage_amount = pot.player_amounts
+            for player_id in player_amount:
+                if player_id in pot_commits:
+                    pot_commits[player_id] += player_amount[player_id]
+                else:
+                    pot_commits[player_id] = player_amount[player_id]
+
+                if player_id in stage_pot_commits:
+                    stage_pot_commits[player_id] += stage_amount[player_id]
+                else:
+                    stage_pot_commits[player_id] = 0
+
+        # calculate the payouts
+
+        observation = self.get_observations(
+            current_player.player_id, pot_commits, stage_pot_commits
+        )
+        reward = self.calculate_reward(pot_commits)
         info = None
 
         # return observation, reward, done, info (optional)
@@ -322,11 +357,14 @@ class PokerEnv(gym.Env):
 
     def reset(self):
         self.game.start_hand()
+        self.fresh_start = True
 
         # # Take the other agent actions (and values) in the game.
-        # while self.game.current_player != 0:
-        #     h_bet, h_val = self.hardcoded_players[self.game.current_player].calculate_action()
-        #     self.game.take_action(h_bet, h_val)
+        while self.game.current_player != 0 and not self.game.is_hand_running():
+            h_bet, h_val = self.hardcoded_players[
+                self.game.current_player
+            ].calculate_action()
+            self.game.take_action(h_bet, h_val)
 
     def close(self):
         # some cleanups
@@ -336,32 +374,41 @@ class PokerEnv(gym.Env):
 def main():
     poker = PokerEnv(num_players=6)
 
+    random_agent = RandomAgent(poker.game)
     while poker.game.is_hand_running():
-        lines = []
-        for i in range(len(poker.game.pots)):
-            lines.append(
-                f"Pot {i}: {poker.game.pots[i].get_total_amount()} Board: {poker.game.board}"
-            )
+        bet, val = random_agent.calculate_action()
 
-        while 1:
-            rand = random.random()
-            val = None
-            if rand < 0.10:
-                bet = ActionType.FOLD
-            elif rand < 0.90:
-                bet = ActionType.CALL
-            else:
-                bet = ActionType.RAISE
-                val = random.randint(5, 30)
-            if poker.game.validate_move(poker.game.current_player, bet, val):
-                break
-
-        print(
-            f"{str(poker.game.hand_phase)[10:]}: Player {poker.game.current_player}, Chips: {poker.game.players[poker.game.current_player].chips}, Action - {str(bet)[11:].capitalize()}{f': {val}' if val else ''}"
+        obs, reward, done, info = poker.step(
+            (poker.action_to_string[bet], val), debug=True
         )
-        poker.game.take_action(bet, val)
-        # print(poker.calculate_reward())
-        print(poker.get_observations())
+        print(obs)
+
+    # while poker.game.is_hand_running():
+    #     lines = []
+    #     for i in range(len(poker.game.pots)):
+    #         lines.append(
+    #             f"Pot {i}: {poker.game.pots[i].get_total_amount()} Board: {poker.game.board}"
+    #         )
+
+    #     while 1:
+    #         rand = random.random()
+    #         val = None
+    #         if rand < 0.10:
+    #             bet = ActionType.FOLD
+    #         elif rand < 0.90:
+    #             bet = ActionType.CALL
+    #         else:
+    #             bet = ActionType.RAISE
+    #             val = random.randint(5, 30)
+    #         if poker.game.validate_move(poker.game.current_player, bet, val):
+    #             break
+
+    #     print(
+    #         f"{str(poker.game.hand_phase)[10:]}: Player {poker.game.current_player}, Chips: {poker.game.players[poker.game.current_player].chips}, Action - {str(bet)[11:].capitalize()}{f': {val}' if val else ''}"
+    #     )
+    #     print(poker.get_observations(current_player_id=0))
+    #     poker.game.take_action(bet, val)
+    #     # print(poker.calculate_reward())
 
 
 if __name__ == "__main__":
