@@ -8,8 +8,10 @@ Texas Hold Em Notation Conventions:
 """
 
 from __future__ import annotations
-from typing import Optional, Tuple, Union
+from typing import Optional, Union, Tuple
 from dataclasses import dataclass
+from pathlib import Path
+import os
 
 from texasholdem.game.action_type import ActionType
 from texasholdem.card.card import Card
@@ -17,6 +19,13 @@ from texasholdem.game.hand_phase import HandPhase
 
 
 FILE_EXTENSION = "pgn"
+
+
+class HistoryImportError(Exception):
+    """
+    History module will throw this error if it cannot import the given
+    PGN file.
+    """
 
 
 @dataclass()
@@ -27,6 +36,7 @@ class PrehandHistory:
     btn_loc: int
     big_blind: int
     small_blind: int
+    starting_pot: int
     player_chips: dict[int, int]
     player_cards: dict[int, list[Card]]
 
@@ -44,6 +54,7 @@ class PrehandHistory:
         return (
             f"Big Blind: {self.big_blind}\n"
             f"Small Blind: {self.small_blind}\n"
+            f"Starting Pot: {self.starting_pot}\n"
             f"Player Chips: {','.join(str(self.player_chips[i]) for i in canon_ids)}\n"
             f"Player Cards: "
             f"{','.join(['[' + ' '.join(str_player_cards[i]) + ']' for i in canon_ids])}"
@@ -58,10 +69,13 @@ class PrehandHistory:
             string (str): The string as returned from to_string()
         Returns:
             PrehandHistory: The prehand history as represented by the string
+        Raises:
+            HistoryImportError: If missing information or a mismatch between cards and chips
         """
-        big_blind, small_blind, chips_str, cards_str = string.split("\n")
+        big_blind, small_blind, starting_pot, chips_str, cards_str = string.split("\n")
         _, big_blind = big_blind.split(": ")
         _, small_blind = small_blind.split(": ")
+        _, starting_pot = starting_pot.split(": ")
 
         _, chips_str = chips_str.split(": ")
         player_chips = [int(chip_str) for chip_str in chips_str.split(",")]
@@ -69,15 +83,20 @@ class PrehandHistory:
 
         _, cards_str = cards_str.split(": ")
         cards_data = cards_str.split(",")
-        cards_data = [
-            card_data.strip("[").strip("]").split(" ") for card_data in cards_data
-        ]
+        cards_data = [card_data.strip("[]").split(" ") for card_data in cards_data]
         player_cards = [[Card(c1), Card(c2)] for c1, c2 in cards_data]
+
+        if len(player_chips) != len(player_cards):
+            raise HistoryImportError(
+                f"Mismatch number of player chips ({len(player_chips)}) "
+                f"and player cards ({len(player_cards)})"
+            )
 
         return PrehandHistory(
             0,
             int(big_blind),
             int(small_blind),
+            int(starting_pot),
             dict(zip(range(num_players), player_chips)),
             dict(zip(range(num_players), player_cards)),
         )
@@ -116,7 +135,7 @@ class PlayerAction:
         Returns:
             PlayerAction: The player action as represented by the string
         """
-        string = string.strip().strip("(").strip(")")
+        string = string.strip().strip("()")
         data = string.split(",")
         player_id, action_type = int(data[0]), ActionType[data[1]]
         value = None if len(data) <= 2 else int(data[2])
@@ -179,9 +198,11 @@ class BettingRoundHistory:
             new_cards = []
 
         action_str = ""
-        for action_line in data:
+        for i, action_line in enumerate(data, 1):
             _, action_line = action_line.split(". ")
             action_str += action_line
+            if i != len(data):
+                action_str += ";"
 
         actions = [PlayerAction.from_string(string) for string in action_str.split(";")]
 
@@ -191,10 +212,10 @@ class BettingRoundHistory:
 @dataclass()
 class SettleHistory:
     """Settle history class, includes new cards and
-    a dictionary of winners: player_id -> (rank, amount won)"""
-
+    a dictionary of pot_winners: pot_id -> (amount, best_rank, list of winning players)"""
+    
     new_cards: list[Card]
-    winners: dict[int, Tuple[int, int]]
+    pot_winners: dict[int, Tuple[int, int, list[int]]]
 
     def to_string(self, canon_ids: dict[int, int]) -> str:
         """
@@ -202,15 +223,25 @@ class SettleHistory:
             canon_ids (dict[int, int]): Map of old_id -> new_id where the new btn_loc is 0
         Returns:
             str: The string representation of the settle history: new cards revealed,
-                winners (id, hand rank, amount)
+                and the winners per pot: (pot_id, total_amount, best_rank, winners list)
         """
-        winner_strs = [
-            f"{canon_ids[winner], rank, amount}"
-            for winner, (rank, amount) in self.winners.items()
+        pot_lists = []
+        for pot_id, (amount, best_rank, winners_list) in self.pot_winners.items():
+            pot_lists.append(
+                (
+                    pot_id,
+                    amount,
+                    best_rank,
+                    [canon_ids[winner] for winner in winners_list],
+                )
+            )
+        pot_strs = [
+            f"(Pot {pot_id},{amount},{best_rank},{str(winners_list)})"
+            for pot_id, amount, best_rank, winners_list in pot_lists
         ]
         return (
             f"New Cards: [{','.join(str(card) for card in self.new_cards)}]\n"
-            f"Winners: {';'.join(winner_strs)}"
+            f"Winners: {';'.join(pot_strs)}"
         )
 
     @staticmethod
@@ -233,12 +264,26 @@ class SettleHistory:
             new_cards = []
 
         _, winners_str = winners_str.split(": ")
-        winners_data = [
-            winner_str.strip("(").strip(")").split(",")
+        pot_winners_data = [
+            winner_str.strip("()")
+            .replace(" ", "")
+            .replace("[", "")
+            .replace("]", "")
+            .split(",")
             for winner_str in winners_str.split(";")
         ]
-        winners = {int(i): (int(rank), int(amount)) for i, rank, amount in winners_data}
-        return SettleHistory(new_cards, winners)
+        pot_winners_data = [
+            (data[0], data[1], data[2], data[3:]) for data in pot_winners_data
+        ]
+        pot_winners = {
+            int(pot_name[(pot_name.find("Pot") + 3) :]): (
+                int(amount),
+                int(best_rank),
+                [int(winner) for winner in winners_list],
+            )
+            for pot_name, amount, best_rank, winners_list in pot_winners_data
+        }
+        return SettleHistory(new_cards, pot_winners)
 
 
 @dataclass()
@@ -305,6 +350,25 @@ class History:
         return string
 
     @staticmethod
+    def _strip_comments(string: str) -> str:
+        """
+        Arguments:
+            string (str): A history string
+        Returns:
+            str: The history string without comments.
+        """
+        new_lines = []
+        for line in string.split("\n"):
+            comment_index = line.find("#")
+
+            if comment_index == -1:
+                new_lines.append(line)
+            elif comment_index != 0:
+                new_lines.append(line[:comment_index].strip())
+
+        return "\n".join(new_lines)
+    
+    @staticmethod
     def from_string(string: str) -> History:
         """
         Reverse of to_string()
@@ -313,9 +377,12 @@ class History:
             string (str): The string as returned from to_string()
         Returns:
             History: The hand history as represented by the string
+        Raises:
+            HistoryImportError: If the PGN file is invalid
         """
         history = History()
-        sections = string.split("\n\n")
+        sections = History._strip_comments(string).split("\n\n")
+        
         for section in sections:
             newline = section.find("\n")
             header, rest = section[:newline], section[(newline + 1) :]
@@ -332,12 +399,150 @@ class History:
                 # remove trailing newline for end of line
                 history_item, rest = SettleHistory, rest[:-1]
             else:
-                raise ValueError(f"Unexpected header in history: '{header}'")
-
+                raise HistoryImportError(f"Unexpected header in history: '{header}'")
+            
             history_item = history_item.from_string(rest)
             history[HandPhase[header]] = history_item
 
         return history
+
+    def export_history(
+        self, path: Union[str, os.PathLike] = "./texas.pgn"
+    ) -> os.PathLike:
+        """
+        Exports the hand history to a human-readable file. If a directory is given,
+        finds a name of the form texas(n).pgn to export to.
+
+        Arguments:
+            path (Union[str, os.PathLike]): The directory or file to export the history to,
+                defaults to the current working directory (./texas.pgn)
+        Returns:
+            os.PathLike: The path to the history file
+        """
+        path_or_dir = Path(path)
+        hist_path = path_or_dir
+
+        if not hist_path.suffixes:
+            hist_path.mkdir(parents=True, exist_ok=True)
+            hist_path = hist_path / f"texas.{FILE_EXTENSION}"
+
+        if f".{FILE_EXTENSION}" not in hist_path.suffixes:
+            hist_path = hist_path.parent / f"{hist_path.name}.{FILE_EXTENSION}"
+
+        # resolve lowest file_num
+        original_path = hist_path
+        num = 1
+        while hist_path.exists():
+            hist_path = (
+                original_path.parent / f"{original_path.stem}({num}).{FILE_EXTENSION}"
+            )
+            num += 1
+
+        with open(hist_path, mode="w+", encoding="ascii") as file:
+            file.write(self.to_string())
+
+        return hist_path.absolute().resolve()
+
+    @staticmethod
+    def import_history(path: Union[str, os.PathLike]) -> History:
+        """
+        Arguments:
+            path (Union[str, os.PathLike]): The PGN file to import from
+        Returns:
+            History: The history class from the file
+        Raises:
+            HistoryImportError: If the file given does not exist or is improperly formatted.
+        """
+        # pylint: disable=protected-access
+        path = Path(path)
+        if not path.exists():
+            raise HistoryImportError(f"File not found: {path.absolute()}")
+
+        # reconstitute history
+        with open(path, mode="r", encoding="ascii") as file:
+            try:
+                history = History.from_string(file.read())
+            except ValueError as err:
+                raise HistoryImportError() from err
+
+        # run checks
+        history._check_missing_sections()
+        history._check_unique_cards()
+        history._check_correct_board_len()
+
+        if len(history.prehand.player_chips) <= 1:
+            raise HistoryImportError(
+                f"Expected at least 2 players in this game, "
+                f"got {len(history.prehand.player_chips)}"
+            )
+
+        return history
+
+    def _check_missing_sections(self):
+        """
+        Raises:
+            HistoryImportError: If there is a section missing
+        """
+        if not self.preflop:
+            raise HistoryImportError("Preflop section is missing")
+        if not self.settle:
+            raise HistoryImportError("Settle section is missing")
+
+        for hand_phase in (HandPhase.PREFLOP, HandPhase.FLOP, HandPhase.TURN):
+            if self[hand_phase.next_phase()] and not self[hand_phase]:
+                raise HistoryImportError(
+                    f"Found a section for {hand_phase.next_phase().name} "
+                    f"but not a section for {hand_phase.name}"
+                )
+
+    def _check_unique_cards(self):
+        """
+        Raises:
+            HistoryImportError: If the cards in the history are not unique
+        """
+        cards = sum(self.prehand.player_cards.values(), [])
+        for hand_phase in (
+            HandPhase.PREFLOP,
+            HandPhase.FLOP,
+            HandPhase.TURN,
+            HandPhase.RIVER,
+        ):
+            history_item = self[hand_phase]
+            if history_item:
+                cards += history_item.new_cards
+
+        if len(cards) != len(set(cards)):
+            raise HistoryImportError("Expected cards given in history to be unique.")
+
+    def _check_correct_board_len(self):
+        """
+        Raises:
+            HistoryImportError: If the cards do not come out in the proper amount
+        """
+        total_board_len = 0
+        for hand_phase in (
+            HandPhase.PREFLOP,
+            HandPhase.FLOP,
+            HandPhase.TURN,
+            HandPhase.RIVER,
+        ):
+            history_item = self[hand_phase]
+            if history_item:
+                if len(history_item.new_cards) != hand_phase.new_cards():
+                    raise HistoryImportError(
+                        f"Expected {hand_phase.new_cards()} "
+                        f"new cards in phase {hand_phase.name}"
+                    )
+                total_board_len += len(history_item.new_cards)
+
+        # settle
+        for _, (_, rank, _) in self.settle.pot_winners.items():
+            if rank != -1:
+                if len(self.settle.new_cards) != 5 - total_board_len:
+                    raise HistoryImportError(
+                        f"Expected {5 - total_board_len} "
+                        f"to come out during settle phase"
+                    )
 
     def __setitem__(
         self,

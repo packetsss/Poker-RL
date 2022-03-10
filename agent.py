@@ -172,12 +172,12 @@ class CrammerAgent:
         
         if action == ActionType.RAISE:
             """
-            CONSIDER ADD THIS PREVIOUS POT COMMIT:
-            
+            ADDED THIS PREVIOUS POT COMMIT TO AVOID INVALID MOVE:
+            """
             previous_pot_commit = self.game.pots[0].raised
+            print({f"pot.amount: {x.amount}": f"pot.raised: {x.raised}" for x in self.game.pots})
             if previous_pot_commit is not None:
                 val += previous_pot_commit
-            """
                 
             if val >= curr_player_chips:
                 action = ActionType.ALL_IN
