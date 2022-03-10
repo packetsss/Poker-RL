@@ -212,7 +212,6 @@ class PokerEnv(gym.Env):
                     - payouts[current_player_id]
                     + 0.001
                 )
-
             if player.chips == 0:
                 percent_payouts[current_player_id] = -1
             else:
@@ -319,7 +318,9 @@ class PokerEnv(gym.Env):
 
             # make sure we add raise value to the prev commits since the game simulator is calculate raise differently
             if format_action:
-                val += previous_pot_commit
+                val += self.game.player_bet_amount(
+                    current_player.player_id
+                ) + self.game.chips_to_call(current_player.player_id)
 
         else:
             val = None
@@ -467,20 +468,15 @@ def main():
             print(
                 f"\nchips: {obs['chips']}",
                 f"\nreward: {tuple(reward.values())}",
-                f"\npots: {poker.game.pots}",
+                # f"\npots: {poker.game.pots}",
             )
+            if games_to_play > 10:
+                break
             games_to_play += 1
             obs, reward, done, info = poker.reset()
-            print(
-                f"\ndone: {done}",
-                f"\nchips: {obs['chips']}",
-                f"\nreward: {tuple(reward.values())}",
-                f"\npots: {poker.game.pots}",
-            )
 
-        if games_to_play > 10:
-            break
-
+    
+    poker.game.export_history("./poker_history.pgn")
     poker.close()
 
 

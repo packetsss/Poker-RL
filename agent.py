@@ -169,18 +169,19 @@ class CrammerAgent:
         #     )
         # else:
         #     print(self.game.hand_phase, curr_player_id, bet, val)
-        
+
         if action == ActionType.RAISE:
             """
             ADDED THIS PREVIOUS POT COMMIT TO AVOID INVALID MOVE:
             """
-            previous_pot_commit = self.game.pots[0].raised
-            print({f"pot.amount: {x.amount}": f"pot.raised: {x.raised}" for x in self.game.pots})
-            if previous_pot_commit is not None:
-                val += previous_pot_commit
-                
+            val += self.game.player_bet_amount(
+                curr_player_id
+            ) + self.game.chips_to_call(curr_player_id)
+
             if val >= curr_player_chips:
                 action = ActionType.ALL_IN
                 val = None
 
         return action, val
+
+
