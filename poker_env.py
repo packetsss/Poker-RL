@@ -476,7 +476,7 @@ def main():
             obs, reward, done, info = poker.reset()
 
     
-    poker.game.export_history("./poker_history.pgn")
+    # poker.game.export_history("./poker_history.pgn")
     poker.close()
 
 
