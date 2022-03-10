@@ -67,6 +67,14 @@ class Pot:
         self.player_amounts = {}
         self.player_amounts_without_remove = {}
 
+    def __repr__(self):
+        return {
+            "amount": self.amount,
+            "raised": self.raised,
+            "player_amounts": self.player_amounts,
+            "player_amounts_without_remove": self.player_amounts_without_remove,
+        }.__str__()
+
     def chips_to_call(self, player_id: int) -> int:
         """Returns the amount of chips to call for the given player.
 
@@ -184,7 +192,7 @@ class Pot:
                 split_pot.player_post(player_id, overflow)
                 self.player_amounts[player_id] -= -overflow
 
-            self.player_amounts_without_remove[player_id] -= -overflow
+                self.player_amounts_without_remove[player_id] -= -overflow
 
         return split_pot
 
@@ -299,7 +307,7 @@ class TexasHoldEm:
 
         # reset pots
         self.pots = [Pot()]
-        
+
         # populate the player_amounts_without_remove dict
         self.pots[0].player_amounts_without_remove = {
             i: 0 for i in range(self.max_players)
@@ -538,7 +546,9 @@ class TexasHoldEm:
 
             # make sure there is 5 cards on the board
             if len(self.board) < 5:
-                new_cards = self._deck.draw(num=5 - len(self.board), draw_from_community=True)
+                new_cards = self._deck.draw(
+                    num=5 - len(self.board), draw_from_community=True
+                )
                 settle_history.new_cards.extend(new_cards)
                 self.board.extend(new_cards)
 
@@ -724,7 +734,9 @@ class TexasHoldEm:
             raise ValueError(f"Hand phase mismatch: expected {self.hand_phase}")
 
         # add new cards to the board
-        new_cards = self._deck.draw(num=hand_phase.new_cards(), draw_from_community=True)
+        new_cards = self._deck.draw(
+            num=hand_phase.new_cards(), draw_from_community=True
+        )
         self.hand_history[hand_phase] = BettingRoundHistory(
             new_cards=new_cards, actions=[]
         )

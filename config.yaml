@@ -1,0 +1,26 @@
+easy-six-player:
+  stack: 500
+  big-blind: 5
+  small-blind: 2
+  players: 6
+  opponents:
+    random-agent: 4
+    crammer-agent: 1
+
+normal-six-player:
+  stack: 500
+  big-blind: 5
+  small-blind: 2
+  players: 6
+  opponents:
+    random-agent: 2
+    crammer-agent: 3
+
+hard-six-player:
+  stack: 500
+  big-blind: 5
+  small-blind: 2
+  players: 6
+  opponents:
+    random-agent: 0
+    crammer-agent: 5

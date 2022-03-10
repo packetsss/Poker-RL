@@ -1,4 +1,5 @@
 gym
 numpy
 treys
+pyyaml
 stable-baselines3[extra]
