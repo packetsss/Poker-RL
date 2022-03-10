@@ -5,11 +5,11 @@ import yaml
 import numpy as np
 from gym import spaces
 
-from texasholdem import TexasHoldEm
-from texasholdem.game.game import Player
-from texasholdem.game.hand_phase import HandPhase
-from texasholdem.game.action_type import ActionType
-from texasholdem.game.player_state import PlayerState
+from engine import TexasHoldEm
+from engine.game.game import Player
+from engine.game.hand_phase import HandPhase
+from engine.game.action_type import ActionType
+from engine.game.player_state import PlayerState
 
 from agent import RandomAgent, CrammerAgent
 

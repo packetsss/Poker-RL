@@ -1,9 +1,9 @@
 import random
 import numpy as np
 
-from texasholdem.game.game import TexasHoldEm
-from texasholdem.game.action_type import ActionType
-from texasholdem.evaluator.evaluator import evaluate
+from engine.game.game import TexasHoldEm
+from engine.game.action_type import ActionType
+from engine.evaluator.evaluator import evaluate
 
 
 class RandomAgent:

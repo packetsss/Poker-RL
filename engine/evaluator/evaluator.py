@@ -11,9 +11,9 @@ all calculations are done with bit arithmetic and table lookups.
 from typing import List
 
 import itertools
-from texasholdem.card import card
-from texasholdem.card.card import Card
-from texasholdem.evaluator.lookup_table import LOOKUP_TABLE
+from engine.card import card
+from engine.card.card import Card
+from engine.evaluator.lookup_table import LOOKUP_TABLE
 
 
 def _five(cards: List[Card]) -> int:

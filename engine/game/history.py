@@ -13,9 +13,9 @@ from dataclasses import dataclass
 from pathlib import Path
 import os
 
-from texasholdem.game.action_type import ActionType
-from texasholdem.card.card import Card
-from texasholdem.game.hand_phase import HandPhase
+from engine.game.action_type import ActionType
+from engine.card.card import Card
+from engine.game.hand_phase import HandPhase
 
 
 FILE_EXTENSION = "pgn"

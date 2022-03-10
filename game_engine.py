@@ -1,5 +1,5 @@
-from texasholdem import TexasHoldEm
-from texasholdem.game.action_type import ActionType
+from engine import TexasHoldEm
+from engine.game.action_type import ActionType
 
 
 def accept_input(turn, player):

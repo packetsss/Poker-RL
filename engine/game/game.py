@@ -19,9 +19,9 @@ from typing import Iterator, Callable, Dict, Tuple, Optional, Union, List
 from enum import Enum, auto
 import random
 
-from texasholdem.card.card import Card
-from texasholdem.card.deck import Deck
-from texasholdem.game.history import (
+from engine.card.card import Card
+from engine.card.deck import Deck
+from engine.game.history import (
     History,
     PrehandHistory,
     BettingRoundHistory,
@@ -29,10 +29,10 @@ from texasholdem.game.history import (
     HistoryImportError,
     SettleHistory,
 )
-from texasholdem.game.action_type import ActionType
-from texasholdem.game.hand_phase import HandPhase
-from texasholdem.game.player_state import PlayerState
-from texasholdem.evaluator import evaluator
+from engine.game.action_type import ActionType
+from engine.game.hand_phase import HandPhase
+from engine.game.player_state import PlayerState
+from engine.evaluator import evaluator
 
 
 class Player:
