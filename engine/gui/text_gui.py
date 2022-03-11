@@ -1,7 +1,7 @@
-from texasholdem.game.player_state import PlayerState
-from texasholdem.game.game import HandPhase
-from texasholdem.card import card
-from texasholdem.game.action_type import ActionType
+from engine.game.player_state import PlayerState
+from engine.game.game import HandPhase
+from engine.card import card
+from engine.game.action_type import ActionType
 
 
 class TextGUI:

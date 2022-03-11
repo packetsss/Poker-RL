@@ -462,5 +462,6 @@ junit/
 
 # Other
 clubs/
+*.prof
+*.pgn
 .vsls.json
-profile.prof

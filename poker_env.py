@@ -5,11 +5,11 @@ import yaml
 import numpy as np
 from gym import spaces
 
-from texasholdem import TexasHoldEm
-from texasholdem.game.game import Player
-from texasholdem.game.hand_phase import HandPhase
-from texasholdem.game.action_type import ActionType
-from texasholdem.game.player_state import PlayerState
+from engine import TexasHoldEm
+from engine.game.game import Player
+from engine.game.hand_phase import HandPhase
+from engine.game.action_type import ActionType
+from engine.game.player_state import PlayerState
 
 from agent import RandomAgent, CrammerAgent
 
@@ -18,11 +18,12 @@ class PokerEnv(gym.Env):
     # for agent training
     metadata = {"render.modes": ["human", "rgb_array"], "video.frames_per_second": 120}
 
-    def __init__(self, config=None):
+    def __init__(self, config=None, debug=False):
         # poker
         if config is None:
             with open("config.yaml") as f:
                 config = yaml.load(f, Loader=yaml.FullLoader)["normal-six-player"]
+
         self.buy_in = config["stack"]
         self.small_blind = config["small-blind"]
         self.big_blind = config["big-blind"]
@@ -30,11 +31,14 @@ class PokerEnv(gym.Env):
         self.opponent_config = config["opponents"]
         self.max_value = self.buy_in * self.num_players
 
+        self.debug = debug
+
         self.game = TexasHoldEm(
             buyin=self.buy_in,
             big_blind=self.big_blind,
             small_blind=self.small_blind,
             max_players=self.num_players,
+            add_chips_when_lose=True,
         )
 
         # dictionary constants
@@ -134,10 +138,29 @@ class PokerEnv(gym.Env):
                 reserved = True
             if not reserved:
                 self.opponents[i] = opponents[i]
+                self.opponents[i].player_id = i
             else:
                 self.opponents[i + 1] = opponents[i]
+                self.opponents[i + 1].player_id = i + 1
 
-    def calculate_reward(self, pot_commits: dict):
+    def card_to_observation(self, card):
+        card = list(str(card))
+        if self.card_num_to_int.get(card[0], 0):
+            card[0] = self.card_num_to_int[card[0]]
+        else:
+            card[0] = int(card[0]) - 1
+        card[1] = self.suit_to_int[card[1]]
+        return tuple(card)
+
+    def get_winners(self):
+        if self.game.hand_history[HandPhase.SETTLE]:
+            winners = self.game.hand_history[HandPhase.SETTLE].pot_winners
+
+            # player_id: (winning_chips, score, pot_id)
+            return {x[1][2][0]: (x[1][0], x[1][1], x[0]) for x in winners.items()}
+        return None
+
+    def get_reward(self, pot_commits: dict):
         # calculate the total number of pot commits for each player
         player_active_dict = {
             x.player_id: x.state != PlayerState.OUT and x.state != PlayerState.SKIP
@@ -149,11 +172,11 @@ class PokerEnv(gym.Env):
             pot_commit[0]: -1 * pot_commit[1] * (not player_active_dict[pot_commit[0]])
             for pot_commit in pot_commits.items()
         }
-        winners = None
-        if self.game.hand_history[HandPhase.SETTLE]:
-            winners = self.game.hand_history[HandPhase.SETTLE].winners
 
-        # everyone but one folded / all-in
+        # calculate winners
+        winners = self.get_winners()
+
+        # everyone but one folded
         if sum(player_active_dict.values()) == 1:
             pot_total = sum(list(map(lambda x: x.amount, self.game.pots)))
             payouts = {
@@ -161,16 +184,24 @@ class PokerEnv(gym.Env):
                 + player_active_dict[player_id] * (pot_total - pot_commits[player_id])
                 for player_id in player_active_dict.keys()
             }
-        # if last street played and still multiple players active
-        elif not self.game.is_hand_running() and not self.game._is_hand_over():
+
+        # if last street played and still multiple players active or everyone all-in
+        elif (not self.game.is_hand_running() and not self.game._is_hand_over()) or (
+            sum(player_active_dict.values()) > 1 and winners is not None
+        ):
             new_payouts = {}
             for player_payout in payouts.items():
                 # if player folded earlier
                 if player_payout[1] != 0:
                     new_payouts[player_payout[0]] = player_payout[1]
+
                 # if player wins
                 elif winners.get(player_payout[0]) is not None:
-                    new_payouts[player_payout[0]] = winners.get(player_payout[0])[1]
+                    new_payouts[player_payout[0]] = (
+                        self.game.players[player_payout[0]].chips
+                        - self.previous_chips[player_payout[0]]
+                    )  # this game chips - last game chips
+
                 # if player stay to the end and loses
                 else:
                     new_payouts[player_payout[0]] = -pot_commits[player_payout[0]]
@@ -180,40 +211,24 @@ class PokerEnv(gym.Env):
         percent_payouts = {}
         for player in self.game.players:
             current_player_id = player.player_id
-            if winners and winners.get(current_player_id) is not None:
-                payout_percentage = winners[current_player_id][1] / (
-                    self.previous_chips[current_player_id]
-                    - pot_commits[current_player_id]
-                    + 0.001
-                )
-            else:
-                payout_percentage = payouts[current_player_id] / (
-                    self.previous_chips[current_player_id]
-                    - payouts[current_player_id]
-                    + 0.001
-                )
-            percent_payouts[current_player_id] = round(
-                max(
-                    min(
-                        payout_percentage * self.reward_multiplier,
-                        1,
-                    ),
-                    -1,
-                ),
-                3,
+            payout_percentage = payouts[current_player_id] / (
+                self.previous_chips[current_player_id] + 0.001
             )
             if player.chips == 0:
                 percent_payouts[current_player_id] = -1
-        return percent_payouts
+            else:
+                percent_payouts[current_player_id] = round(
+                    max(
+                        min(
+                            payout_percentage * self.reward_multiplier,
+                            1,
+                        ),
+                        -1,
+                    ),
+                    3,
+                )
 
-    def card_to_observation(self, card):
-        card = list(str(card))
-        if self.card_num_to_int.get(card[0], 0):
-            card[0] = self.card_num_to_int[card[0]]
-        else:
-            card[0] = int(card[0]) - 1
-        card[1] = self.suit_to_int[card[1]]
-        return tuple(card)
+        return percent_payouts
 
     def get_observations(
         self, current_player_id: int, pot_commits: dict, stage_pot_commits: dict
@@ -238,9 +253,10 @@ class PokerEnv(gym.Env):
         winners = None
         # if last street played and still multiple players active
         if not self.game.is_hand_running() and not self.game._is_hand_over():
-            winners = self.game.hand_history[HandPhase.SETTLE].winners
-            active = [0, 0, 0, 0, 0, 0]
-            active[list(winners.keys())[0]] = 1
+            winners = self.game.hand_history[HandPhase.SETTLE].pot_winners
+            active = [0] * self.num_players
+            for winner_id in winners.keys():
+                active[winner_id] = 1
 
         for x in self.game.players:
             if winners is None:
@@ -279,7 +295,7 @@ class PokerEnv(gym.Env):
 
         return observations
 
-    def step(self, action, format_action=True, debug=False):
+    def step(self, action, format_action=True):
         """
         Standard gym env step function. Each step is a round of everyone has placed their bets
         """
@@ -304,7 +320,9 @@ class PokerEnv(gym.Env):
 
             # make sure we add raise value to the prev commits since the game simulator is calculate raise differently
             if format_action:
-                val += previous_pot_commit
+                val += self.game.player_bet_amount(
+                    current_player.player_id
+                ) + self.game.chips_to_call(current_player.player_id)
 
         else:
             val = None
@@ -314,11 +332,10 @@ class PokerEnv(gym.Env):
             action = self.num_to_action[action]
 
         if action == ActionType.RAISE and val >= current_player.chips:
-            # print(val)
             action = ActionType.ALL_IN
             val = None
 
-        if debug:
+        if self.debug:
             print(
                 f"{str(self.game.hand_phase)[10:]}: Player {self.game.current_player}, Chips: {self.game.players[self.game.current_player].chips}, Action - {str(action)[11:].capitalize()}{f': {val}' if val else ''}"
             )
@@ -333,7 +350,7 @@ class PokerEnv(gym.Env):
                 action, val = self.opponents[
                     self.game.current_player
                 ].calculate_action()
-                if debug:
+                if self.debug:
                     print(
                         f"{str(self.game.hand_phase)[10:]}: Player {self.game.current_player}, Chips: {self.game.players[self.game.current_player].chips}, Action - {str(action)[11:].capitalize()}{f': {val}' if val else ''}"
                     )
@@ -346,7 +363,7 @@ class PokerEnv(gym.Env):
         stage_pot_commits = {}
         for pot in self.game.pots:
             player_amount = pot.player_amounts_without_remove
-            stage_amount = pot.player_amounts  ### FIXED NEEDED HERE
+            stage_amount = pot.player_amounts
 
             for player_id in player_amount:
                 if player_id in pot_commits:
@@ -354,7 +371,6 @@ class PokerEnv(gym.Env):
                 else:
                     pot_commits[player_id] = player_amount[player_id]
 
-                # print(stage_amount, stage_pot_commits)
                 if player_id in stage_pot_commits:
                     stage_pot_commits[player_id] += stage_amount.get(player_id, 0)
                 else:
@@ -368,8 +384,8 @@ class PokerEnv(gym.Env):
         )
 
         # reward + info
-        reward = self.calculate_reward(pot_commits)
-        info = None
+        reward = self.get_reward(pot_commits)
+        info = {"winners": self.get_winners()}
 
         return observation, reward, done, info
 
@@ -377,17 +393,23 @@ class PokerEnv(gym.Env):
         pass
 
     def reset(self):
+        # update previous chips
         self.fresh_start = True
         for x in self.game.players:
             self.previous_chips.update({x.player_id: x.chips})
-        # self.previous_chips = {x.player_id: x.chips for x in self.game.players}
 
+        # initiate game engine
         self.game.start_hand()
 
         # take opponent actions in the game
         done = not self.game.is_hand_running()
         while self.game.current_player != self.agent_id and not done:
             action, val = self.opponents[self.game.current_player].calculate_action()
+            if self.debug:
+                print(
+                    f"{str(self.game.hand_phase)[10:]}: Player {self.game.current_player}, Chips: {self.game.players[self.game.current_player].chips}, Action - {str(action)[11:].capitalize()}{f': {val}' if val else ''}"
+                )
+
             self.game.take_action(action, val)
             done = not self.game.is_hand_running()
 
@@ -413,11 +435,13 @@ class PokerEnv(gym.Env):
                 if player_id in stage_pot_commits:
                     stage_pot_commits[player_id] += stage_amount[player_id]
                 else:
-                    stage_pot_commits[player_id] = 0
+                    stage_pot_commits[player_id] = (
+                        stage_amount[player_id] if stage_amount.get(player_id, 0) else 0
+                    )
         observation = self.get_observations(
             current_player.player_id, pot_commits, stage_pot_commits
         )
-        reward = self.calculate_reward(pot_commits)
+        reward = self.get_reward(pot_commits)
         return observation, reward, done, None
 
     def close(self):
@@ -425,13 +449,13 @@ class PokerEnv(gym.Env):
         print("Environment is closing...")
 
 
-def main():
-    # with open("config.yaml") as f:
-    #     config = yaml.load(f, Loader=yaml.FullLoader)
-    # poker = PokerEnv(config=config["hard-six-player"])
+def main(n_games=1):
+    with open("config.yaml") as f:
+        config = yaml.load(f, Loader=yaml.FullLoader)
 
-    poker = PokerEnv()
+    poker = PokerEnv(config=config["normal-six-player"], debug=n_games <= 5)
     agent = CrammerAgent(poker.game)
+    agent.player_id = poker.agent_id
 
     # reset environment
     obs, reward, done, info = poker.reset()
@@ -440,31 +464,44 @@ def main():
     games_to_play = 0
     while not done:
         action, val = agent.calculate_action()
-        obs, reward, done, info = poker.step(
-            (action, val), format_action=False, debug=True
-        )
+        obs, reward, done, info = poker.step((action, val), format_action=False)
 
         if done:
-            lp = {x.player_id: x.last_pot for x in poker.game.players}
-            print(f"\nchips: {obs['chips']}", f"\nreward: {tuple(reward.values())}", f"\npots: {poker.game.pots}", f"\nlast_pot: {lp}\n")
+            if n_games <= 5:
+                print(
+                    f"\nprev chips: {tuple(poker.previous_chips.values())}",
+                    f"\nchips: {obs['chips']}",
+                    f"\nreward: {tuple(reward.values())}",
+                    f"\nwinners: {info['winners']}",
+                    "\n",
+                )
+
             games_to_play += 1
+            if games_to_play >= n_games:
+                break
             obs, reward, done, info = poker.reset()
 
-        if games_to_play > 10:
-            break
+    if n_games > 5:
+        print(
+            f"\nprev chips: {tuple(poker.previous_chips.values())}",
+            f"\nchips: {obs['chips']}",
+            f"\nreward: {tuple(reward.values())}",
+            f"\nwinners: {info['winners']}",
+            "\n",
+        )
 
     poker.close()
 
 
 if __name__ == "__main__":
-    # function runtime: 0.00184 s (pretty fast for 1 game/hand)
+    # --- about 2s for 1000 games (0.002s / game) --- #
     import pstats
     import cProfile
 
     with cProfile.Profile() as pr:
-        main()
+        main(n_games=1)
 
     stats = pstats.Stats(pr)
     stats.sort_stats(pstats.SortKey.TIME)
     stats.dump_stats("profile.prof")
-    # use `snakeviz .\profile.prof` to see stats
+    # run `snakeviz profile.prof` to see stats

@@ -2,14 +2,14 @@ import math
 
 from typing import List
 
-from texasholdem import TexasHoldEm
-from texasholdem.card.card import Card
-from texasholdem.card.deck import Deck
-from texasholdem.game.player_state import PlayerState
-from texasholdem.game.action_type import ActionType
-from texasholdem.game.hand_phase import HandPhase
-from texasholdem.evaluator.evaluator import evaluate
-from texasholdem.gui import TextGUI
+from engine import TexasHoldEm
+from engine.card.card import Card
+from engine.card.deck import Deck
+from engine.game.player_state import PlayerState
+from engine.game.action_type import ActionType
+from engine.game.hand_phase import HandPhase
+from engine.evaluator.evaluator import evaluate
+from engine.gui import TextGUI
 
 game = TexasHoldEm(500, 5, 2, max_players=6)
 gui = TextGUI()

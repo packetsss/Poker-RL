@@ -8,7 +8,7 @@ from enum import Enum, auto
 
 
 class PlayerState(Enum):
-    """An enum representing a player state (i.e. needs to 
+    """An enum representing a player state (i.e. needs to
     call, in the pot, sitting out, etc."""
 
     SKIP = auto()

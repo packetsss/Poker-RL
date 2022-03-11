@@ -1,13 +1,14 @@
 import random
 import numpy as np
 
-from texasholdem.game.game import TexasHoldEm
-from texasholdem.game.action_type import ActionType
-from texasholdem.evaluator.evaluator import evaluate
+from engine.game.game import TexasHoldEm
+from engine.game.action_type import ActionType
+from engine.evaluator.evaluator import evaluate
 
 
 class RandomAgent:
-    def __init__(self, game: TexasHoldEm):
+    def __init__(self, game: TexasHoldEm, player_id: int = None):
+        self.player_id = player_id
         self.game = game
 
     def calculate_action(self):
@@ -20,7 +21,17 @@ class RandomAgent:
                 action = ActionType.CALL
             else:
                 action = ActionType.RAISE
-                val = random.randint(5, 30)
+                curr_player_id = self.game.current_player
+                val = (
+                    random.randint(2, 50)
+                    + self.game.player_bet_amount(curr_player_id)
+                    + self.game.chips_to_call(curr_player_id)
+                )
+
+                if val >= self.game.players[curr_player_id].chips:
+                    action = ActionType.ALL_IN
+                    val = None
+                    
             if self.game.validate_move(self.game.current_player, action, val):
                 break
 
@@ -28,8 +39,17 @@ class RandomAgent:
 
 
 class CrammerAgent:
-    def __init__(self, game: TexasHoldEm, num_to_action: dict = None, alpha=2, beta=50):
+    def __init__(
+        self,
+        game: TexasHoldEm,
+        player_id: int = None,
+        num_to_action: dict = None,
+        alpha=2,
+        beta=50,
+    ):
+        self.player_id = player_id
         self.game = game
+
         if num_to_action is None:
             num_to_action = {
                 0: ActionType.CALL,
@@ -43,12 +63,12 @@ class CrammerAgent:
         self.beta = beta
 
     def calculate_action(self):
-        board = self.game.board
-        community_cards = self.game.community_cards
-        all_hands = self.game.hands
-        hand_phase = self.game.hand_phase
-        hand_history = self.game.hand_history
-        big_blind = self.game.big_blind
+        # board = self.game.board
+        # community_cards = self.game.community_cards
+        # all_hands = self.game.hands
+        # hand_phase = self.game.hand_phase
+        # hand_history = self.game.hand_history
+        # big_blind = self.game.big_blind
         curr_player_id = self.game.current_player
         curr_player_chips = self.game.players[curr_player_id].chips
 
@@ -74,22 +94,19 @@ class CrammerAgent:
             # "odds" calculator for how likely it is for our CrammerAgent to win.
             # This dict can vary based on which players are active in the current
             # game.
-        player_odds = {}
-        for active_player_id in self.game.active_iter():
-            active_player_hand = self.game.hands[active_player_id]
-            player_odds[active_player_id] = evaluate(
-                active_player_hand, community_cards
-            )
 
         # player_odds:
         # {3: 3117, 4: 6530, 5: 6316, 0: 3522, 1: 6585, 2: 6528}
-        ids = list(player_odds.keys())
-        odds = list(player_odds.values())
+
+        hand_score = self.game.player_hand_scores
+
+        ids = list(hand_score.keys())
+        odds = list(hand_score.values())
 
         # Player ID with highest odds of winning.
         possible_winner_id = ids[odds.index(min(odds))]
         difference = (
-            player_odds[possible_winner_id] - player_odds[curr_player_id]
+            hand_score[possible_winner_id] - hand_score[curr_player_id]
         )  # [0, 7461]
 
         # Hmmm, we want to have it return some bet and val
@@ -157,7 +174,6 @@ class CrammerAgent:
                     self.game.big_blind,
                     min(chips_bet, curr_player_chips),
                 )
-
         # # Debugging.
         # if not self.game.validate_move(curr_player_id, bet, val):
         #     print(
@@ -169,16 +185,15 @@ class CrammerAgent:
         #     )
         # else:
         #     print(self.game.hand_phase, curr_player_id, bet, val)
-        
+
         if action == ActionType.RAISE:
             """
-            CONSIDER ADD THIS PREVIOUS POT COMMIT:
-            
-            previous_pot_commit = self.game.pots[0].raised
-            if previous_pot_commit is not None:
-                val += previous_pot_commit
+            ADDED THIS PREVIOUS POT COMMIT TO AVOID INVALID MOVE:
             """
-                
+            val += self.game.player_bet_amount(
+                curr_player_id
+            ) + self.game.chips_to_call(curr_player_id)
+
             if val >= curr_player_chips:
                 action = ActionType.ALL_IN
                 val = None

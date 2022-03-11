@@ -3,8 +3,8 @@
 from typing import List
 
 import random
-from texasholdem.card import card
-from texasholdem.card.card import Card
+from engine.card import card
+from engine.card.card import Card
 
 
 class Deck:
