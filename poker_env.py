@@ -138,8 +138,10 @@ class PokerEnv(gym.Env):
                 reserved = True
             if not reserved:
                 self.opponents[i] = opponents[i]
+                self.opponents[i].player_id = i
             else:
                 self.opponents[i + 1] = opponents[i]
+                self.opponents[i + 1].player_id = i + 1
 
     def card_to_observation(self, card):
         card = list(str(card))
@@ -330,7 +332,6 @@ class PokerEnv(gym.Env):
             action = self.num_to_action[action]
 
         if action == ActionType.RAISE and val >= current_player.chips:
-            # print(val)
             action = ActionType.ALL_IN
             val = None
 
@@ -364,7 +365,6 @@ class PokerEnv(gym.Env):
             player_amount = pot.player_amounts_without_remove
             stage_amount = pot.player_amounts
 
-            # print("a: ", player_amount, "b: ", stage_amount, "p_amount: ", pot.amount)
             for player_id in player_amount:
                 if player_id in pot_commits:
                     pot_commits[player_id] += player_amount[player_id]
@@ -393,10 +393,12 @@ class PokerEnv(gym.Env):
         pass
 
     def reset(self):
+        # update previous chips
         self.fresh_start = True
         for x in self.game.players:
             self.previous_chips.update({x.player_id: x.chips})
 
+        # initiate game engine
         self.game.start_hand()
 
         # take opponent actions in the game
@@ -447,14 +449,13 @@ class PokerEnv(gym.Env):
         print("Environment is closing...")
 
 
-def main():
+def main(n_games=1):
     with open("config.yaml") as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
 
-    # poker = PokerEnv(debug=True)
-    poker = PokerEnv(config=config["hard-six-player"], debug=False)
-
+    poker = PokerEnv(config=config["normal-six-player"], debug=n_games <= 5)
     agent = CrammerAgent(poker.game)
+    agent.player_id = poker.agent_id
 
     # reset environment
     obs, reward, done, info = poker.reset()
@@ -466,30 +467,41 @@ def main():
         obs, reward, done, info = poker.step((action, val), format_action=False)
 
         if done:
-            print(
-                f"\nprev chips: {tuple(poker.previous_chips.values())}",
-                f"\nchips: {obs['chips']}",
-                f"\nreward: {tuple(reward.values())}",
-                f"\nwinners: {info['winners']}",
-                "\n",
-            )
-            if games_to_play > 1000:
-                break
+            if n_games <= 5:
+                print(
+                    f"\nprev chips: {tuple(poker.previous_chips.values())}",
+                    f"\nchips: {obs['chips']}",
+                    f"\nreward: {tuple(reward.values())}",
+                    f"\nwinners: {info['winners']}",
+                    "\n",
+                )
+
             games_to_play += 1
+            if games_to_play >= n_games:
+                break
             obs, reward, done, info = poker.reset()
+
+    if n_games > 5:
+        print(
+            f"\nprev chips: {tuple(poker.previous_chips.values())}",
+            f"\nchips: {obs['chips']}",
+            f"\nreward: {tuple(reward.values())}",
+            f"\nwinners: {info['winners']}",
+            "\n",
+        )
 
     poker.close()
 
 
 if __name__ == "__main__":
-    # function runtime: 0.00184 s (pretty fast for 1 game/hand)
+    # --- about 2s for 1000 games (0.002s / game) --- #
     import pstats
     import cProfile
 
     with cProfile.Profile() as pr:
-        main()
+        main(n_games=1)
 
     stats = pstats.Stats(pr)
     stats.sort_stats(pstats.SortKey.TIME)
     stats.dump_stats("profile.prof")
-    # use `snakeviz .\profile.prof` to see stats
+    # run `snakeviz profile.prof` to see stats

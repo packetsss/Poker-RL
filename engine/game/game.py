@@ -257,6 +257,7 @@ class TexasHoldEm:
         self._deck = None
         self.board = []
         self.hands = {}
+        self.player_hand_scores = {}
 
         self.num_hands = 0
         self.hand_phase = HandPhase.PREHAND
@@ -332,6 +333,14 @@ class TexasHoldEm:
 
         for player_id in self.active_iter(self.btn_loc + 1):
             self.hands[player_id] = self._deck.draw(num=2)
+
+        # evaluate every player's hands
+        self.player_hand_scores = {}
+        for player in self.players:
+            active_player_hand = self.hands[player.player_id]
+            self.player_hand_scores[player.player_id] = evaluator.evaluate(
+                active_player_hand, self.community_cards
+            )
 
         # reset history
         self._action = None, None
@@ -569,16 +578,11 @@ class TexasHoldEm:
                 settle_history.new_cards.extend(new_cards)
                 self.board.extend(new_cards)
 
-            player_ranks = {}
-            for player_id in players_in_pot:
-                player_ranks[player_id] = evaluator.evaluate(
-                    self.hands[player_id], self.board
-                )
-
-            best_rank = min(player_ranks.values())
+            # use preevaluated hand scores here
+            best_rank = min(self.player_hand_scores.values())
             winners = [
                 player_id
-                for player_id, player_rank in player_ranks.items()
+                for player_id, player_rank in self.player_hand_scores.items()
                 if player_rank == best_rank
             ]
 

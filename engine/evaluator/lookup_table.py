@@ -1,9 +1,7 @@
 """
 The lookup table module keeps the books on all possible hand strengths.
 We construct the table once on import and reference it repeatedly.
-
 Number of Distinct Hand Values:
-
 Straight Flush   10
 Four of a Kind   156      [(13 choose 2) * (2 choose 1)]
 Full Houses      156      [(13 choose 2) * (2 choose 1)]
@@ -15,10 +13,8 @@ One Pair         2860     [(13 choose 4) * (4 choose 1)]
 High card      + 1277     [(13 choose 5) - 10 straights]
 -------------------------
 TOTAL            7462
-
 Here we create a lookup table which maps:
     5 card hand's unique prime product => rank in range [1, 7462]
-
 Examples:
 * Royal flush (best hand possible)          => 1
 * 7-5-4-3-2 unsuited (worst hand possible)  => 7462
@@ -87,7 +83,6 @@ class LookupTable:
     def _flushes(self):
         """
         Straight flushes and flushes.
-
         Lookup is done on 13 bit integer (2^13 > 7462):
         xxxbbbbb bbbbbbbb => integer hand index
         """
@@ -159,7 +154,6 @@ class LookupTable:
     def _straight_and_highcards(self, straights, highcards):
         """
         Unique five card sets. Straights and highcards.
-
         Reuses bit sequences from flush calculations.
         """
         rank = LookupTable.MAX_FLUSH + 1
@@ -270,7 +264,6 @@ class LookupTable:
         """
         Bit hack from here:
         http://www-graphics.stanford.edu/~seander/bithacks.html#NextBitPermutation
-
         Generator even does this in poker order rank
         so no need to sort when done!
         """
