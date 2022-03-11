@@ -14,7 +14,6 @@ It also includes the main TexasHoldEm class of the texasholdem package.
 from __future__ import annotations
 
 import os
-from pathlib import Path
 from typing import Iterator, Callable, Dict, Tuple, Optional, Union, List
 from enum import Enum, auto
 import random
@@ -436,7 +435,7 @@ class TexasHoldEm:
 
         # increment last_pot for players with enough chips
         for player_id in self.in_pot_iter():
-            if self.players[player_id].chips >= self.chips_to_call(player_id):
+            if self.players[player_id].chips > self.chips_to_call(player_id):
                 self.players[player_id].last_pot += 1
 
     def _player_post(self, player_id: int, amount: int):
@@ -492,11 +491,11 @@ class TexasHoldEm:
     def _get_pot(self, pot_id: int) -> Pot:
         """
         Arguments:
-            pot_id (int): The player_id of the pot to get
+            pot_id (int): The id of the pot to get
         Returns:
-            Pot: The pot with given player_id
+            Pot: The pot with given id
         Raises:
-            ValueError: If a pot with player_id pot_id does not exist.
+            ValueError: If a pot with id pot_id does not exist.
 
         """
         if pot_id >= len(self.pots):
