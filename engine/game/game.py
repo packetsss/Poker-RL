@@ -663,6 +663,17 @@ class TexasHoldEm:
         if new_action == ActionType.CHECK:
             return self.players[player_id].state == PlayerState.IN
         if new_action == ActionType.RAISE:
+            # if new_value is None:
+            #     print("Error 1")
+            # if new_value < raised_level + self.big_blind and new_value < player_amount + self.players[player_id].chips:
+            #     print("Error 2")
+            #     print(new_value, raised_level, self.big_blind)
+            #     print("--", new_value, player_amount, self.players[player_id].chips)
+            # if player_amount + self.players[player_id].chips < new_value:
+            #     print("Error 3")
+            # if new_value < chips_to_call:
+            #     print("TO CALL:", chips_to_call, new_value)
+            #     print("Error 4")
             return not (
                 new_value is None
                 or (

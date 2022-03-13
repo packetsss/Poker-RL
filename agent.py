@@ -105,7 +105,7 @@ class CrammerAgent:
 
         # Player ID with highest odds of winning.
         possible_winner_id = ids[odds.index(min(odds))]
-        difference = (
+        difference = abs(
             hand_score[possible_winner_id] - hand_score[curr_player_id]
         )  # [0, 7461]
 
@@ -131,9 +131,11 @@ class CrammerAgent:
                 proportion = np.random.beta(self.alpha, self.beta, size=1)
                 chips_bet = int(proportion * curr_player_chips)
                 chips_to_call = self.game.chips_to_call(curr_player_id)
+
+                raised_level = self.game._get_pot(self.game.players[curr_player_id].last_pot).raised
                 val = max(
                     chips_to_call,
-                    self.game.big_blind,
+                    self.game.big_blind + raised_level,
                     min(chips_bet, curr_player_chips),
                 )
 
@@ -142,12 +144,17 @@ class CrammerAgent:
             # The temp is near 1 if the difference between curr player odds and best player odds is small.
             # The temp is near 0 if the difference is large.
 
-            var = np.random.uniform() * (0.1 * 7461)
+            var = np.random.uniform() * (0.02 * 7461)
 
             temp = 1 - (
                 max(0, min(7461, (difference + var))) / (7461 + 1)
             )  # [near 1 if difference is smaller, near 0 if difference is bigger].
             val = None
+
+            # print("HAND SCORES:", hand_score)
+            # print("VAR:", var)
+            # print("DIFFERENCE:", difference)
+            # print("TEMP:", temp)
 
             # Maybe we can try a more complex decision maker here.
             # log_diff = max(np.log10(1/difference), 2)  # We will find the magnitude of it.
@@ -169,9 +176,11 @@ class CrammerAgent:
                 proportion = np.random.beta(self.alpha, self.beta, size=1)
                 chips_bet = int(proportion * curr_player_chips)
                 chips_to_call = self.game.chips_to_call(curr_player_id)
+
+                raised_level = self.game._get_pot(self.game.players[curr_player_id].last_pot).raised
                 val = max(
                     chips_to_call,
-                    self.game.big_blind,
+                    self.game.big_blind + raised_level,
                     min(chips_bet, curr_player_chips),
                 )
         # # Debugging.
@@ -190,6 +199,7 @@ class CrammerAgent:
             """
             ADDED THIS PREVIOUS POT COMMIT TO AVOID INVALID MOVE:
             """
+
             val += self.game.player_bet_amount(
                 curr_player_id
             ) + self.game.chips_to_call(curr_player_id)
