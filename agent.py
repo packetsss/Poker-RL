@@ -31,7 +31,7 @@ class RandomAgent:
                 if val >= self.game.players[curr_player_id].chips:
                     action = ActionType.ALL_IN
                     val = None
-                    
+
             if self.game.validate_move(self.game.current_player, action, val):
                 break
 
@@ -132,9 +132,11 @@ class CrammerAgent:
                 chips_bet = int(proportion * curr_player_chips)
                 chips_to_call = self.game.chips_to_call(curr_player_id)
 
-                raised_level = self.game._get_pot(self.game.players[curr_player_id].last_pot).raised
+                raised_level = self.game._get_pot(
+                    self.game.players[curr_player_id].last_pot
+                ).raised
                 val = max(
-                    chips_to_call,
+                    chips_to_call + self.game.player_bet_amount(curr_player_id) + 1,
                     self.game.big_blind + raised_level,
                     min(chips_bet, curr_player_chips),
                 )
@@ -154,7 +156,8 @@ class CrammerAgent:
             # print("HAND SCORES:", hand_score)
             # print("VAR:", var)
             # print("DIFFERENCE:", difference)
-            # print("TEMP:", temp)
+            # if temp < 0.6:
+            #     print("TEMP:", temp)
 
             # Maybe we can try a more complex decision maker here.
             # log_diff = max(np.log10(1/difference), 2)  # We will find the magnitude of it.
@@ -177,9 +180,11 @@ class CrammerAgent:
                 chips_bet = int(proportion * curr_player_chips)
                 chips_to_call = self.game.chips_to_call(curr_player_id)
 
-                raised_level = self.game._get_pot(self.game.players[curr_player_id].last_pot).raised
+                raised_level = self.game._get_pot(
+                    self.game.players[curr_player_id].last_pot
+                ).raised
                 val = max(
-                    chips_to_call,
+                    chips_to_call + self.game.player_bet_amount(curr_player_id) + 1,
                     self.game.big_blind + raised_level,
                     min(chips_bet, curr_player_chips),
                 )
@@ -199,10 +204,14 @@ class CrammerAgent:
             """
             ADDED THIS PREVIOUS POT COMMIT TO AVOID INVALID MOVE:
             """
+            # print(
+            #     self.game.chips_to_call(curr_player_id),
+            #     self.game.player_bet_amount(curr_player_id),
+            # )
 
-            val += self.game.player_bet_amount(
-                curr_player_id
-            ) + self.game.chips_to_call(curr_player_id)
+            # val += self.game.player_bet_amount(
+            #     curr_player_id
+            # ) + self.game.chips_to_call(curr_player_id)
 
             if val >= curr_player_chips:
                 action = ActionType.ALL_IN
