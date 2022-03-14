@@ -450,7 +450,7 @@ class PokerEnv(gym.Env):
 
 
 def main(n_games=1):
-    with open("config.yaml") as f:
+    with open("C:/Users/alcka/F_drive/DS3 Poker AI/Poker-RL/config.yaml") as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
 
     poker = PokerEnv(config=config["normal-six-player"], debug=n_games <= 5)

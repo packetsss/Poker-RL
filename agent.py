@@ -146,18 +146,18 @@ class CrammerAgent:
             # The temp is near 1 if the difference between curr player odds and best player odds is small.
             # The temp is near 0 if the difference is large.
 
-            var = np.random.uniform() * (0.02 * 7461)
+            var = np.random.uniform() * (0.1 * 7461)
 
             temp = 1 - (
                 max(0, min(7461, (difference + var))) / (7461 + 1)
             )  # [near 1 if difference is smaller, near 0 if difference is bigger].
+            temp *= np.random.uniform(0.01, 0.8) 
             val = None
 
             # print("HAND SCORES:", hand_score)
             # print("VAR:", var)
             # print("DIFFERENCE:", difference)
-            # if temp < 0.6:
-            #     print("TEMP:", temp)
+            # print(temp)
 
             # Maybe we can try a more complex decision maker here.
             # log_diff = max(np.log10(1/difference), 2)  # We will find the magnitude of it.
@@ -167,9 +167,9 @@ class CrammerAgent:
             # # [2, 3] -> within 100 and 1000
             # # [3, 4] -> within 1000 and 10000
 
-            if temp < 0.4:  # If the difference is 4500 or greater (up to 7461).
+            if temp < 0.3:  # If the difference is 4500 or greater (up to 7461).
                 action = ActionType.FOLD
-            elif temp < 0.50:  # If the difference is between 4500 and roughly 3750.
+            elif temp < 0.60:  # If the difference is between 4500 and roughly 3750.
                 if "CALL" in possible_actions:
                     action = ActionType.CALL
                 else:
