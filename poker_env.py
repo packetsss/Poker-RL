@@ -433,7 +433,9 @@ class PokerEnv(gym.Env):
                     pot_commits[player_id] = player_amount[player_id]
 
                 if player_id in stage_pot_commits:
-                    stage_pot_commits[player_id] += stage_amount[player_id]
+                    stage_pot_commits[player_id] += (
+                        stage_amount[player_id] if stage_amount.get(player_id, 0) else 0
+                    )
                 else:
                     stage_pot_commits[player_id] = (
                         stage_amount[player_id] if stage_amount.get(player_id, 0) else 0
@@ -450,7 +452,7 @@ class PokerEnv(gym.Env):
 
 
 def main(n_games=1):
-    with open("C:/Users/alcka/F_drive/DS3 Poker AI/Poker-RL/config.yaml") as f:
+    with open("config.yaml") as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
 
     poker = PokerEnv(config=config["normal-six-player"], debug=n_games <= 5)
@@ -465,6 +467,7 @@ def main(n_games=1):
     while not done:
         action, val = agent.calculate_action()
         obs, reward, done, info = poker.step((action, val), format_action=False)
+        # print(obs)
 
         if done:
             if n_games <= 5:
@@ -472,7 +475,7 @@ def main(n_games=1):
                     f"\nprev chips: {tuple(poker.previous_chips.values())}",
                     f"\nchips: {obs['chips']}",
                     f"\nreward: {tuple(reward.values())}",
-                    f"\nwinners: {info['winners']}",
+                    f"\nwinners: {info}",
                     "\n",
                 )
 
@@ -486,7 +489,7 @@ def main(n_games=1):
             f"\nprev chips: {tuple(poker.previous_chips.values())}",
             f"\nchips: {obs['chips']}",
             f"\nreward: {tuple(reward.values())}",
-            f"\nwinners: {info['winners']}",
+            f"\nwinners: {info}",
             "\n",
         )
 
@@ -499,7 +502,7 @@ if __name__ == "__main__":
     import cProfile
 
     with cProfile.Profile() as pr:
-        main(n_games=5)
+        main(n_games=1)
 
     stats = pstats.Stats(pr)
     stats.sort_stats(pstats.SortKey.TIME)

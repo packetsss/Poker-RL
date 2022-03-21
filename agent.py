@@ -151,7 +151,7 @@ class CrammerAgent:
             temp = 1 - (
                 max(0, min(7461, (difference + var))) / (7461 + 1)
             )  # [near 1 if difference is smaller, near 0 if difference is bigger].
-            temp *= np.random.uniform(0.01, 0.8) 
+            temp *= np.random.uniform(0.01, 0.8)
             val = None
 
             # print("HAND SCORES:", hand_score)
