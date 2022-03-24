@@ -89,7 +89,8 @@ class TextGUI:
 
         for i in range(len(poker_game.pots)):
             lines.append(
-                "Pot {}: {} ({})".format(
+                "{} - Pot {}: {} ({})".format(
+                    str(poker_game.hand_phase)[10:],
                     i,
                     poker_game.pots[i].get_total_amount(),
                     poker_game.pots[i].get_amount(),

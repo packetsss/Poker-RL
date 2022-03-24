@@ -12,6 +12,8 @@ from engine.game.history import PrehandHistory
 from engine.game.player_state import PlayerState
 
 from agent import RandomAgent, CrammerAgent, RLAgent
+from engine.gui.text_gui import TextGUI
+from old.game_engine import accept_input
 
 from utils.flatten import flatten_spaces, flatten_array
 
@@ -20,7 +22,7 @@ class PokerEnv(Env):
     # for agent training
     metadata = {"render.modes": ["human", "rgb_array"], "video.frames_per_second": 120}
 
-    def __init__(self, config=None, debug=False):
+    def __init__(self, config: dict = None, debug: bool = False, gui: TextGUI = None):
         # poker
 
         with open("config.yaml") as f:
@@ -36,6 +38,10 @@ class PokerEnv(Env):
         self.opponent_config = config["opponents"]
         self.buyin_limit = config["buyin_limit"]
         self.agent_id = config["agent_id"]  # id for our own agent
+        self.gui = gui
+        self.use_gui = self.gui is not None
+        if self.use_gui:
+            self.gui.set_player_ids([self.agent_id])
 
         self.max_value = self.buy_in * self.num_players * self.buyin_limit + 1
         self.debug = debug
@@ -320,20 +326,6 @@ class PokerEnv(Env):
             ]
 
         # update observations
-        """
-        observations.update(
-            actions=tuple(actions),
-            active=tuple(active),
-            chips=tuple(chips),
-            community_cards=tuple(community_cards),
-            player_card=player_card,
-            max_raise=self.game.players[current_player_id].chips,
-            min_raise=self.game.pots[0].raised,
-            pot=sum(map(lambda x: x.amount, self.game.pots)),
-            player_stacks=tuple(pot_commits.values()),
-            stage_bettings=tuple(stage_pot_commits.values()),
-        )
-        """
         return np.array(
             flatten_array(
                 [
@@ -352,23 +344,18 @@ class PokerEnv(Env):
         )
 
     def step(self, action, format_action=True, get_all_rewards=False):
-        """
-        Standard gym env step function. Each step is a round of everyone has placed their bets
-        """
-
         action, val = action
-
-        # convert action to ActionType
-        if format_action:
-            action = round(action)
-            action = self.num_to_action[action]
-
         current_player: Player = list(
             filter(
                 lambda x: x.player_id == self.game.current_player,
                 self.game.players,
             )
         )[0]
+
+        # convert action to ActionType
+        if format_action:
+            action = round(action)
+            action = self.num_to_action[action]
 
         if action == 1 or action == ActionType.RAISE:
             # start of the game and the model choose to raise
@@ -395,11 +382,6 @@ class PokerEnv(Env):
             action = ActionType.ALL_IN
             val = None
 
-        if self.debug:
-            print(
-                f"{str(self.game.hand_phase)[10:]}: Player {self.game.current_player}, Chips: {self.game.players[self.game.current_player].chips}, Action - {str(action)[11:].capitalize()}{f': {val}' if val else ''}"
-            )
-
         # check valid action
         if not self.game.validate_move(current_player.player_id, action, val):
             action = (
@@ -410,6 +392,14 @@ class PokerEnv(Env):
                 else ActionType.FOLD
             )
             val = None
+
+        if self.debug:
+            print(
+                f"{str(self.game.hand_phase)[10:]}: Player {self.game.current_player}, Chips: {self.game.players[self.game.current_player].chips}, Action - {str(action)[11:].capitalize()}{f': {val}' if val else ''}"
+            )
+        if self.use_gui:
+            self.gui.print_state(self.game)
+            self.gui.print_action(self.game.current_player, action, val)
 
         # agent take action
         self.game.take_action(action, val)
@@ -430,12 +420,17 @@ class PokerEnv(Env):
                     f"{str(self.game.hand_phase)[10:]}: Player {self.game.current_player}, Chips: {self.game.players[self.game.current_player].chips}, Action - {str(action)[11:].capitalize()}{f': {val}' if val else ''}"
                 )
 
+            if self.use_gui:
+                self.gui.print_action(self.game.current_player, action, val)
+
             # opponent take action
             self.game.take_action(action, val)
             done = not self.game.is_hand_running()
 
-        # observations
+        if self.use_gui:
+            self.gui.print_state(self.game)
 
+        # observations
         pot_commits, stage_pot_commits = self.get_pot_commits()
         observation = self.get_observations(
             current_player.player_id, pot_commits, stage_pot_commits
@@ -469,6 +464,9 @@ class PokerEnv(Env):
             if not self.game.is_game_running():
                 self.reset_game()
 
+        if self.use_gui:
+            self.gui.print_state(self.game)
+
         # take opponent actions in the game
         while self.game.current_player != self.agent_id:
             observations = None
@@ -484,12 +482,18 @@ class PokerEnv(Env):
                 print(
                     f"{str(self.game.hand_phase)[10:]}: Player {self.game.current_player}, Chips: {self.game.players[self.game.current_player].chips}, Action - {str(action)[11:].capitalize()}{f': {val}' if val else ''}"
                 )
+            if self.use_gui:
+                self.gui.print_action(self.game.current_player, action, val)
+
             self.game.take_action(action, val)
 
             while not self.game.is_hand_running():
                 self.game.start_hand()
                 if not self.game.is_game_running():
                     self.reset_game()
+
+        if self.use_gui:
+            self.gui.print_state(self.game)
 
         # calculate + return information
         current_player: Player = list(
@@ -513,7 +517,9 @@ def main(n_games=1):
     with open("config.yaml") as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
 
-    poker = PokerEnv(config=config["sac-six-player"], debug=n_games <= 5)
+    gui = TextGUI()
+
+    poker = PokerEnv(config=config["sac-six-player"], debug=n_games <= 5, gui=gui)
     agent = CrammerAgent(poker.game)
     agent.player_id = poker.agent_id
 
@@ -523,18 +529,26 @@ def main(n_games=1):
     # start step loop
     games_to_play = 0
     while 1:
-        action, val = agent.calculate_action()
+        # action, val = agent.calculate_action()
+        action, val = gui.accept_input()
+        while not poker.game.validate_move(poker.game.current_player, action, val):
+            print(f"{action} {val} is not valid for player {poker.game.current_player}")
+            action, val = gui.accept_input()
+
         obs, reward, done, info = poker.step(
             (action, val), format_action=False, get_all_rewards=True
         )
 
         if done:
-            if n_games <= 5:
+            if n_games >= 5:
                 print(
                     f"\nprev chips: {tuple(poker.previous_chips.values())}",
-                    f"\nchips: {[x.chips for x in poker.game.players]}",
+                    f"\nchips: {tuple([x.chips for x in poker.game.players])}",
+                    f"\nsum chips: {sum(tuple([x.chips for x in poker.game.players]))}",
                     f"\nreward: {tuple(reward.values())}",
                     f"\nwinners: {info}",
+                    f"\nbuyin history: {tuple(poker.game.total_buyin_history.values())}",
+                    f"\nrestart times: {poker.game.game_restarts}",
                     "\n",
                 )
 
@@ -562,7 +576,7 @@ if __name__ == "__main__":
     import cProfile
 
     with cProfile.Profile() as pr:
-        main(n_games=3000)
+        main(n_games=100)
 
     stats = pstats.Stats(pr)
     stats.sort_stats(pstats.SortKey.TIME)
