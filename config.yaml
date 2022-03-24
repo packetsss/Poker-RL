@@ -1,35 +1,51 @@
 easy-six-player:
   stack: 500
-  big-blind: 5
   small-blind: 2
+  big-blind: 5
+  buyin_limit: 3
   players: 6
   opponents:
+    rl-agent: 
+      sac: 0
     random-agent: 4
     crammer-agent: 1
+  agent_id: 0
 
 normal-six-player:
   stack: 500
-  big-blind: 5
   small-blind: 2
+  big-blind: 5
+  buyin_limit: 3
   players: 6
   opponents:
+    rl-agent: 
+      sac: 0
     random-agent: 2
     crammer-agent: 3
+  agent_id: 0
 
 hard-six-player:
   stack: 500
-  big-blind: 5
   small-blind: 2
+  big-blind: 5
+  buyin_limit: 3 
   players: 6
   opponents:
+    rl-agent: 
+      sac: 0
     random-agent: 0
     crammer-agent: 5
+  agent_id: 0
 
-less-buyin-six-player:
-  stack: 2
-  big-blind: 5
+sac-six-player:
+  stack: 500
   small-blind: 2
+  big-blind: 5
+  buyin_limit: 3
   players: 6
   opponents:
+    rl-agent: 
+      sac: 0
     random-agent: 2
     crammer-agent: 3
+  agent_id: 0

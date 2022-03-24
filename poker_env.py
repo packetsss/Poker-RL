@@ -11,7 +11,7 @@ from engine.game.hand_phase import HandPhase
 from engine.game.action_type import ActionType
 from engine.game.player_state import PlayerState
 
-from agent import RandomAgent, CrammerAgent
+from agent import RandomAgent, CrammerAgent, RLAgent
 
 from utils.flatten import flatten_spaces, flatten_array
 
@@ -31,8 +31,10 @@ class PokerEnv(gym.Env):
         self.big_blind = config["big-blind"]
         self.num_players = config["players"]
         self.opponent_config = config["opponents"]
-        self.max_value = self.buy_in * self.num_players
+        self.buyin_limit = config["buyin_limit"]
+        self.agent_id = config["agent_id"]  # id for our own agent
 
+        self.max_value = self.buy_in * self.num_players * self.buyin_limit + 1
         self.debug = debug
 
         self.game = TexasHoldEm(
@@ -40,7 +42,8 @@ class PokerEnv(gym.Env):
             big_blind=self.big_blind,
             small_blind=self.small_blind,
             max_players=self.num_players,
-            add_chips_when_lose=True,
+            agent_id=self.agent_id,
+            add_chips_when_lose=False,
         )
 
         # dictionary constants
@@ -65,30 +68,19 @@ class PokerEnv(gym.Env):
         self.card_num_to_int = {"T": 9, "J": 10, "Q": 11, "K": 12, "A": 13}
 
         # step function
-        self.agent_id = 0  # id for our own agent
         self.fresh_start = True
         self.previous_chips = {}
-
-        # opponents
-        self.opponents: dict[int, Union[RandomAgent, CrammerAgent]] = {}
-        self.add_opponent()
+        self.default_pot_commit = {x.player_id: 0 for x in self.game.players}
 
         # gym environment
         self.spec = None
         self.num_envs = 1
 
         # reward
-        self.illegal_move_reward = -1
         self.reward_multiplier = 1.1
         self.reward_range = np.array([-1, 1])
 
         # action space
-        # self.action_space = spaces.MultiDiscrete(
-        #     [
-        #         4,
-        #         self.max_value,
-        #     ],
-        # )
         self.action_space = spaces.Box(
             np.array([0, 0]), np.array([3, self.max_value - 1]), (2,), dtype=np.int32
         )
@@ -128,9 +120,18 @@ class PokerEnv(gym.Env):
 
         self.observation_space = flatten_spaces(obs_space)
 
+        # opponents
+        self.opponents: dict[int, Union[RandomAgent, CrammerAgent]] = {}
+        self.add_opponent()
+
     def add_opponent(self):
         # temporarily adding all random agents
         opponents = []
+
+        rl_agent: dict = self.opponent_config["rl-agent"]
+        for name, amount in rl_agent.items():
+            for _ in range(amount):
+                opponents.append(RLAgent(self, "models/sac_v1", name))
 
         random_agent = self.opponent_config["random-agent"]
         for _ in range(random_agent):
@@ -168,10 +169,32 @@ class PokerEnv(gym.Env):
             return {x[1][2][0]: (x[1][0], x[1][1], x[0]) for x in winners.items()}
         return None
 
+    def get_pot_commits(self):
+        pot_commits = self.default_pot_commit.copy()
+        stage_pot_commits = self.default_pot_commit.copy()
+
+        for pot in self.game.pots:
+            player_amount = pot.player_amounts_without_remove
+            stage_amount = pot.player_amounts
+
+            for player_id in player_amount:
+                if player_id in pot_commits:
+                    pot_commits[player_id] += player_amount[player_id]
+                else:
+                    pot_commits[player_id] = player_amount[player_id]
+
+                if player_id in stage_pot_commits:
+                    stage_pot_commits[player_id] += stage_amount.get(player_id, 0)
+                else:
+                    stage_pot_commits[player_id] = (
+                        stage_amount[player_id] if stage_amount.get(player_id, 0) else 0
+                    )
+        return pot_commits, stage_pot_commits
+
     def get_reward(self, pot_commits: dict):
         # calculate the total number of pot commits for each player
         player_active_dict = {
-            x.player_id: x.state != PlayerState.OUT and x.state != PlayerState.SKIP
+            x.player_id: x.state not in (PlayerState.OUT, PlayerState.SKIP)
             for x in self.game.players
         }
 
@@ -266,7 +289,7 @@ class PokerEnv(gym.Env):
 
         for x in self.game.players:
             if winners is None:
-                active.append(int(x.state != PlayerState.OUT))
+                active.append(int(x.state not in (PlayerState.OUT, PlayerState.SKIP)))
             chips.append(x.chips)
 
         # community cards
@@ -278,11 +301,8 @@ class PokerEnv(gym.Env):
         # player hand
         player_card = ((0, 0),) * 2
         if self.game.hand_phase != HandPhase.PREFLOP:
-            player_card = tuple(
-                map(
-                    lambda x: self.card_to_observation(x),
-                    self.game.hands[current_player_id],
-                )
+            player_card = (
+                self.card_to_observation(x) for x in self.game.hands[current_player_id]
             )
 
         # update observations
@@ -321,14 +341,24 @@ class PokerEnv(gym.Env):
         """
         Standard gym env step function. Each step is a round of everyone has placed their bets
         """
+
         action, val = action
-        action = round(action)
         current_player: Player = list(
             filter(
                 lambda x: x.player_id == self.game.current_player,
                 self.game.players,
             )
         )[0]
+
+        # check if game is running
+        if not self.game.is_game_running():
+            self.game.reset_game()
+            pot_commits, stage_pot_commits = self.get_pot_commits()
+            observation = self.get_observations(
+                current_player.player_id, pot_commits, stage_pot_commits
+            )
+            reward = self.get_reward(pot_commits)[self.agent_id]
+            return observation, reward, True, None
 
         if action == 1 or action == ActionType.RAISE:
             # start of the game and the model choose to raise
@@ -353,6 +383,7 @@ class PokerEnv(gym.Env):
         # convert action
         if format_action:
             action = self.num_to_action[action]
+            action = round(action)
 
         if action == ActionType.RAISE and val >= current_player.chips:
             action = ActionType.ALL_IN
@@ -380,9 +411,14 @@ class PokerEnv(gym.Env):
         if not done:
             # Take the other agent actions (and values) in the game.
             while self.game.current_player != self.agent_id and not done:
-                action, val = self.opponents[
-                    self.game.current_player
-                ].calculate_action()
+                observations = None
+                if isinstance(self.opponents[self.game.current_player], RLAgent):
+                    observations = self.get_observations(
+                        self.game.current_player, *self.get_pot_commits()
+                    )
+                action, val = self.opponents[self.game.current_player].calculate_action(
+                    observations
+                )
                 if self.debug:
                     print(
                         f"{str(self.game.hand_phase)[10:]}: Player {self.game.current_player}, Chips: {self.game.players[self.game.current_player].chips}, Action - {str(action)[11:].capitalize()}{f': {val}' if val else ''}"
@@ -392,26 +428,8 @@ class PokerEnv(gym.Env):
                 done = not self.game.is_hand_running()
 
         # observations
-        pot_commits = {}
-        stage_pot_commits = {}
-        for pot in self.game.pots:
-            player_amount = pot.player_amounts_without_remove
-            stage_amount = pot.player_amounts
 
-            for player_id in player_amount:
-                if player_id in pot_commits:
-                    pot_commits[player_id] += player_amount[player_id]
-                else:
-                    pot_commits[player_id] = player_amount[player_id]
-
-                if player_id in stage_pot_commits:
-                    stage_pot_commits[player_id] += stage_amount.get(player_id, 0)
-                else:
-                    stage_pot_commits[player_id] = (
-                        stage_amount[player_id] if stage_amount.get(player_id, 0) else 0
-                    )
-        pot_commits = dict(sorted(pot_commits.items()))
-        stage_pot_commits = dict(sorted(stage_pot_commits.items()))
+        pot_commits, stage_pot_commits = self.get_pot_commits()
         observation = self.get_observations(
             current_player.player_id, pot_commits, stage_pot_commits
         )
@@ -425,6 +443,11 @@ class PokerEnv(gym.Env):
     def render(self):
         pass
 
+    def reset_game(self):
+        self.game.reset_game()
+        for x in self.game.players:
+            self.previous_chips.update({x.player_id: x.chips})
+
     def reset(self):
         # update previous chips
         self.fresh_start = True
@@ -432,22 +455,40 @@ class PokerEnv(gym.Env):
             self.previous_chips.update({x.player_id: x.chips})
 
         # initiate game engine
-        self.game.start_hand()
+        if self.game.is_game_running():
+            self.game.start_hand()
+        else:
+            self.reset_game()
+            self.game.start_hand()
 
         # take opponent actions in the game
-        done = not self.game.is_hand_running()
         while self.game.current_player != self.agent_id:
+            if not self.game.is_hand_running() and self.game.is_game_running():
+                self.game.start_hand()
+            elif not self.game.is_game_running() and not self.game.is_hand_running():
+                self.reset_game()
+                self.game.start_hand()
 
-            action, val = self.opponents[self.game.current_player].calculate_action()
+            observations = None
+            if isinstance(self.opponents[self.game.current_player], RLAgent):
+                observations = self.get_observations(
+                    self.game.current_player, *self.get_pot_commits()
+                )
+            action, val = self.opponents[self.game.current_player].calculate_action(
+                observations
+            )
+
             if self.debug:
                 print(
                     f"{str(self.game.hand_phase)[10:]}: Player {self.game.current_player}, Chips: {self.game.players[self.game.current_player].chips}, Action - {str(action)[11:].capitalize()}{f': {val}' if val else ''}"
                 )
 
             self.game.take_action(action, val)
-            done = not self.game.is_hand_running()
 
-            if done:
+            if not self.game.is_hand_running() and self.game.is_game_running():
+                self.game.start_hand()
+            elif not self.game.is_game_running() and not self.game.is_hand_running():
+                self.reset_game()
                 self.game.start_hand()
 
         # calculate + return information
@@ -458,27 +499,8 @@ class PokerEnv(gym.Env):
             )
         )[0]
 
-        pot_commits = {}
-        stage_pot_commits = {}
-        for pot in self.game.pots:
-            player_amount = pot.player_amounts_without_remove
-            stage_amount = pot.player_amounts
-            for player_id in player_amount:
-                if player_id in pot_commits:
-                    pot_commits[player_id] += player_amount[player_id]
-                else:
-                    pot_commits[player_id] = player_amount[player_id]
-
-                if player_id in stage_pot_commits:
-                    stage_pot_commits[player_id] += (
-                        stage_amount[player_id] if stage_amount.get(player_id, 0) else 0
-                    )
-                else:
-                    stage_pot_commits[player_id] = (
-                        stage_amount[player_id] if stage_amount.get(player_id, 0) else 0
-                    )
         observation = self.get_observations(
-            current_player.player_id, pot_commits, stage_pot_commits
+            current_player.player_id, *self.get_pot_commits()
         )
         return observation
 
@@ -509,7 +531,6 @@ def main(n_games=1):
                 print(
                     f"\nprev chips: {tuple(poker.previous_chips.values())}",
                     f"\nchips: {[x.chips for x in poker.game.players]}",
-                    f"\nreward: {tuple(reward.values())}",
                     f"\nwinners: {info}",
                     "\n",
                 )
@@ -519,15 +540,15 @@ def main(n_games=1):
                 break
             obs = poker.reset()
 
-    if n_games > 5:
-        print(
-            f"\nprev chips: {tuple(poker.previous_chips.values())}",
-            f"\nchips: {[x.chips for x in poker.game.players]}",
-            f"\nreward: {tuple(reward.values())}",
-            f"\nwinners: {info}",
-            "\n",
-        )
-
+    print(
+        f"\nprev chips: {tuple(poker.previous_chips.values())}",
+        f"\nchips: {tuple([x.chips for x in poker.game.players])}",
+        f"\nsum chips: {sum(tuple([x.chips for x in poker.game.players]))}",
+        f"\nwinners: {info}",
+        f"\nbuyin history: {tuple(poker.game.total_buyin_history.values())}",
+        f"\nrestart times: {poker.game.game_restarts}",
+        "\n",
+    )
     poker.close()
 
 

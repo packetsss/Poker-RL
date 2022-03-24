@@ -461,7 +461,6 @@ OpenCover/
 junit/
 
 # Other
-clubs/
 models/
 *.prof
 *.pgn

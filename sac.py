@@ -10,7 +10,7 @@ from poker_env import PokerEnv
 with open("config.yaml") as f:
     config = yaml.load(f, Loader=yaml.FullLoader)
 
-env = PokerEnv(config=config["less-buyin-six-player"])
+env = PokerEnv(config=config["sac-six-player"])
 
 ## policy-kwargs: change last layer in network from relu to None/Dense
 # policy_kwargs = dict(activation_fn=T.nn.ReLU, net_arch=[32, 32, 32, 32, 64])

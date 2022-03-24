@@ -1,5 +1,6 @@
 import random
 import numpy as np
+from stable_baselines3 import SAC, TD3, PPO, A2C
 
 from engine.game.game import TexasHoldEm
 from engine.game.action_type import ActionType
@@ -11,7 +12,7 @@ class RandomAgent:
         self.player_id = player_id
         self.game = game
 
-    def calculate_action(self):
+    def calculate_action(self, *arg, **kwargs):
         while 1:
             rand = random.random()
             val = None
@@ -38,6 +39,25 @@ class RandomAgent:
         return action, val
 
 
+class RLAgent:
+    def __init__(self, env, path, algorithm, player_id):
+        self.player_id = player_id
+        self.game = env.game
+        if algorithm == "sac":
+            self.model = SAC.load(
+                path,
+                env=env,
+            )
+        else:
+            raise NotImplementedError
+
+    def calculate_action(self, observations=None):
+        if observations is None:
+            raise ValueError("Observations is required for RL Agent")
+        action, _states = self.model.predict(observations, deterministic=True)
+        return action
+
+
 class CrammerAgent:
     def __init__(
         self,
@@ -62,7 +82,7 @@ class CrammerAgent:
         self.alpha = alpha
         self.beta = beta
 
-    def calculate_action(self):
+    def calculate_action(self, *arg, **kwargs):
         # board = self.game.board
         # community_cards = self.game.community_cards
         # all_hands = self.game.hands

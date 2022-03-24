@@ -226,6 +226,8 @@ class TexasHoldEm:
         buyin: int,
         big_blind: int,
         small_blind: int,
+        agent_id: int,
+        buyin_limit=3,
         max_players=9,
         add_chips_when_lose=False,
     ):
@@ -240,12 +242,21 @@ class TexasHoldEm:
         self.big_blind = big_blind
         self.small_blind = small_blind
         self.max_players = max_players
+        self.buyin_limit = buyin_limit
+        self.agent_id = agent_id
+        self.game_restarts = 0
 
         self.add_chips_when_lose = add_chips_when_lose
 
         self.players: list[Player] = list(
             Player(i, self.buyin) for i in range(max_players)
         )
+
+        self.buyin_history = {}
+        for player in self.players:
+            self.buyin_history[player.player_id] = 0  ## Added to limit number of buyins
+            
+        self.total_buyin_history = self.buyin_history.copy()
 
         self.btn_loc = random.choice(self.players).player_id
         self.bb_loc = -1
@@ -290,10 +301,14 @@ class TexasHoldEm:
         for player_id in self.player_iter(loc=0):
             self.players[player_id].last_pot = 0
 
-            if self.players[player_id].chips == 0 and self.add_chips_when_lose:
-                self.players[player_id].chips += self.buyin
-
             if self.players[player_id].chips == 0:
+                if self.add_chips_when_lose:
+                    self.players[player_id].chips += self.buyin
+                elif self.buyin_history[player_id] < self.buyin_limit:
+                    self.players[player_id].chips += self.buyin
+                    self.buyin_history[player_id] += 1
+                    self.total_buyin_history[player_id] += 1
+
                 self.players[player_id].state = PlayerState.SKIP
             else:
                 self.players[player_id].state = PlayerState.TO_CALL
@@ -301,7 +316,10 @@ class TexasHoldEm:
         active_players = list(self.active_iter(self.btn_loc + 1))
 
         # stop if only 1 player
-        if len(active_players) <= 1:
+        if (
+            len(active_players) <= 1
+            or self.players[self.agent_id].state == PlayerState.SKIP
+        ):
             self.game_state = GameState.STOPPED
             return
 
@@ -337,6 +355,8 @@ class TexasHoldEm:
         # evaluate every player's hands
         self.player_hand_scores = {}
         for player in self.players:
+            if player.state in (PlayerState.OUT, PlayerState.SKIP):
+                continue
             active_player_hand = self.hands[player.player_id]
             self.player_hand_scores[player.player_id] = evaluator.evaluate(
                 active_player_hand, self.community_cards
@@ -897,6 +917,17 @@ class TexasHoldEm:
                 yield from round_iter
 
             self.hand_phase = self.hand_phase.next_phase()
+
+    def reset_game(self):
+        ## Set all chips to normal -> 500
+        ## set buyin_histories back to zeros
+        self.game_restarts += 1
+        self.game_state = GameState.RUNNING
+
+        for player in self.players:
+            player.chips = self.buyin
+            player.state = PlayerState.TO_CALL
+            self.buyin_history[player.player_id] = 0
 
     def is_hand_running(self) -> bool:
         """
