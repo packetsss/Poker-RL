@@ -1,9 +1,8 @@
 from typing import Union
 
-import gym
 import yaml
 import numpy as np
-from gym import spaces
+from gym import spaces, Env
 
 from engine import TexasHoldEm
 from engine.game.game import Player
@@ -17,15 +16,18 @@ from agent import RandomAgent, CrammerAgent, RLAgent
 from utils.flatten import flatten_spaces, flatten_array
 
 
-class PokerEnv(gym.Env):
+class PokerEnv(Env):
     # for agent training
     metadata = {"render.modes": ["human", "rgb_array"], "video.frames_per_second": 120}
 
     def __init__(self, config=None, debug=False):
         # poker
-        if config is None:
-            with open("config.yaml") as f:
-                config = yaml.load(f, Loader=yaml.FullLoader)["normal-six-player"]
+
+        with open("config.yaml") as f:
+            cf = yaml.load(f, Loader=yaml.FullLoader)
+            env_constants = cf["environment-constants"]
+            if config is None:
+                config = cf["normal-six-player"]
 
         self.buy_in = config["stack"]
         self.small_blind = config["small-blind"]
@@ -78,7 +80,11 @@ class PokerEnv(gym.Env):
         self.num_envs = 1
 
         # reward
-        self.reward_multiplier = 1.1
+        self.reward_multiplier = env_constants["reward_multiplier"]
+        self.winner_reward_multiplier = env_constants[
+            "winner_reward_multiplier"
+        ]  # amplify winner's reward to encourage winning
+
         self.reward_range = np.array([-1, 1])
 
         # action space
@@ -246,6 +252,8 @@ class PokerEnv(gym.Env):
             payout_percentage = payouts[current_player_id] / (
                 self.previous_chips[current_player_id] + 0.001
             )
+            if payout_percentage > 0:
+                payout_percentage *= self.winner_reward_multiplier
             if player.chips == 0:
                 percent_payouts[current_player_id] = -1
             else:
@@ -272,11 +280,13 @@ class PokerEnv(gym.Env):
         # prefill action list
         actions = [(-1, 0)] * self.num_players
         if not isinstance(current_round_history, PrehandHistory):
-            
+
             for player_action in current_round_history.actions:
                 actions[player_action.player_id] = (
                     self.action_to_num[player_action.action_type],  # action
-                    player_action.value if player_action.value is not None else 0,  # value
+                    player_action.value
+                    if player_action.value is not None
+                    else 0,  # value
                 )
 
         # active + chips
@@ -291,7 +301,9 @@ class PokerEnv(gym.Env):
 
         for x in self.game.players:
             if winners is None:
-                active[x.player_id] = int(x.state not in (PlayerState.OUT, PlayerState.SKIP))
+                active[x.player_id] = int(
+                    x.state not in (PlayerState.OUT, PlayerState.SKIP)
+                )
             chips[x.player_id] = x.chips
 
         # community cards
@@ -339,18 +351,18 @@ class PokerEnv(gym.Env):
             )
         )
 
-    def step(self, action, format_action=True):
+    def step(self, action, format_action=True, get_all_rewards=False):
         """
         Standard gym env step function. Each step is a round of everyone has placed their bets
         """
 
         action, val = action
-        
+
         # convert action to ActionType
         if format_action:
             action = round(action)
             action = self.num_to_action[action]
-            
+
         current_player: Player = list(
             filter(
                 lambda x: x.player_id == self.game.current_player,
@@ -403,7 +415,6 @@ class PokerEnv(gym.Env):
         self.game.take_action(action, val)
         done = not self.game.is_hand_running()
 
-
         # Take the other agent actions (and values) in the game.
         while self.game.current_player != self.agent_id and not done:
             observations = None
@@ -431,7 +442,10 @@ class PokerEnv(gym.Env):
         )
 
         # reward + info
-        reward = self.get_reward(pot_commits)[self.agent_id]
+        if get_all_rewards:
+            reward = self.get_reward(pot_commits)
+        else:
+            reward = self.get_reward(pot_commits)[self.agent_id]
         info = {"winners": self.get_winners()}
         return observation, reward, done, info
 
@@ -499,7 +513,7 @@ def main(n_games=1):
     with open("config.yaml") as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
 
-    poker = PokerEnv(config=config["normal-six-player"], debug=n_games <= 5)
+    poker = PokerEnv(config=config["sac-six-player"], debug=n_games <= 5)
     agent = CrammerAgent(poker.game)
     agent.player_id = poker.agent_id
 
@@ -510,13 +524,16 @@ def main(n_games=1):
     games_to_play = 0
     while 1:
         action, val = agent.calculate_action()
-        obs, reward, done, info = poker.step((action, val), format_action=False)
+        obs, reward, done, info = poker.step(
+            (action, val), format_action=False, get_all_rewards=True
+        )
 
         if done:
             if n_games <= 5:
                 print(
                     f"\nprev chips: {tuple(poker.previous_chips.values())}",
                     f"\nchips: {[x.chips for x in poker.game.players]}",
+                    f"\nreward: {tuple(reward.values())}",
                     f"\nwinners: {info}",
                     "\n",
                 )
@@ -530,6 +547,7 @@ def main(n_games=1):
         f"\nprev chips: {tuple(poker.previous_chips.values())}",
         f"\nchips: {tuple([x.chips for x in poker.game.players])}",
         f"\nsum chips: {sum(tuple([x.chips for x in poker.game.players]))}",
+        f"\nreward: {tuple(reward.values())}",
         f"\nwinners: {info}",
         f"\nbuyin history: {tuple(poker.game.total_buyin_history.values())}",
         f"\nrestart times: {poker.game.game_restarts}",
@@ -544,7 +562,7 @@ if __name__ == "__main__":
     import cProfile
 
     with cProfile.Profile() as pr:
-        main(n_games=100000)
+        main(n_games=3000)
 
     stats = pstats.Stats(pr)
     stats.sort_stats(pstats.SortKey.TIME)

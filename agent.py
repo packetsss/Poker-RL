@@ -1,10 +1,16 @@
+from __future__ import annotations
+
 import random
 import numpy as np
+from typing import TYPE_CHECKING
 from stable_baselines3 import SAC, TD3, PPO, A2C
 
-from engine.game.game import TexasHoldEm
+
 from engine.game.action_type import ActionType
-from engine.evaluator.evaluator import evaluate
+
+if TYPE_CHECKING:
+    from poker_env import PokerEnv
+    from engine.game.game import TexasHoldEm
 
 
 class RandomAgent:
@@ -42,7 +48,7 @@ class RandomAgent:
 class RLAgent:
     def __init__(
         self,
-        env,
+        env: PokerEnv,
         path: str,
         algorithm: str,
         num_to_action: dict = None,
