@@ -40,9 +40,17 @@ class RandomAgent:
 
 
 class RLAgent:
-    def __init__(self, env, path, algorithm, player_id):
+    def __init__(
+        self,
+        env,
+        path: str,
+        algorithm: str,
+        num_to_action: dict = None,
+        player_id: int = None,
+    ):
         self.player_id = player_id
         self.game = env.game
+        self.num_to_action = num_to_action
         if algorithm == "sac":
             self.model = SAC.load(
                 path,
@@ -55,7 +63,17 @@ class RLAgent:
         if observations is None:
             raise ValueError("Observations is required for RL Agent")
         action, _states = self.model.predict(observations, deterministic=True)
-        return action
+        action, val = action
+
+        if not self.game.validate_move(self.player_id, action, val):
+            action = (
+                ActionType.CHECK
+                if self.game.validate_move(self.player_id, ActionType.CHECK, None)
+                else ActionType.FOLD
+            )
+            val = None
+
+        return action, val
 
 
 class CrammerAgent:

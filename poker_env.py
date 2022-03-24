@@ -9,6 +9,7 @@ from engine import TexasHoldEm
 from engine.game.game import Player
 from engine.game.hand_phase import HandPhase
 from engine.game.action_type import ActionType
+from engine.game.history import PrehandHistory
 from engine.game.player_state import PlayerState
 
 from agent import RandomAgent, CrammerAgent, RLAgent
@@ -129,9 +130,9 @@ class PokerEnv(gym.Env):
         opponents = []
 
         rl_agent: dict = self.opponent_config["rl-agent"]
-        for name, amount in rl_agent.items():
-            for _ in range(amount):
-                opponents.append(RLAgent(self, "models/sac_v1", name))
+        for name, paths in rl_agent.items():
+            for path in paths:
+                opponents.append(RLAgent(self, path, name, self.num_to_action))
 
         random_agent = self.opponent_config["random-agent"]
         for _ in range(random_agent):
@@ -270,27 +271,28 @@ class PokerEnv(gym.Env):
             current_round_history = self.game.hand_history.get_last_history()
         # prefill action list
         actions = [(-1, 0)] * self.num_players
-        for player_action in current_round_history.actions:
-            actions[player_action.player_id] = (
-                self.action_to_num[player_action.action_type],  # action
-                player_action.value if player_action.value is not None else 0,  # value
-            )
+        if not isinstance(current_round_history, PrehandHistory):
+            
+            for player_action in current_round_history.actions:
+                actions[player_action.player_id] = (
+                    self.action_to_num[player_action.action_type],  # action
+                    player_action.value if player_action.value is not None else 0,  # value
+                )
 
         # active + chips
-        active = []
-        chips = []
+        active = [0] * self.num_players
+        chips = [0] * self.num_players
         winners = None
         # if last street played and still multiple players active
         if not self.game.is_hand_running() and not self.game._is_hand_over():
             winners = self.game.hand_history[HandPhase.SETTLE].pot_winners
-            active = [0] * self.num_players
             for winner_id in winners.keys():
                 active[winner_id] = 1
 
         for x in self.game.players:
             if winners is None:
-                active.append(int(x.state not in (PlayerState.OUT, PlayerState.SKIP)))
-            chips.append(x.chips)
+                active[x.player_id] = int(x.state not in (PlayerState.OUT, PlayerState.SKIP))
+            chips[x.player_id] = x.chips
 
         # community cards
         community_cards = [(0, 0)] * 5
@@ -301,9 +303,9 @@ class PokerEnv(gym.Env):
         # player hand
         player_card = ((0, 0),) * 2
         if self.game.hand_phase != HandPhase.PREFLOP:
-            player_card = (
+            player_card = [
                 self.card_to_observation(x) for x in self.game.hands[current_player_id]
-            )
+            ]
 
         # update observations
         """
@@ -343,22 +345,18 @@ class PokerEnv(gym.Env):
         """
 
         action, val = action
+        
+        # convert action to ActionType
+        if format_action:
+            action = round(action)
+            action = self.num_to_action[action]
+            
         current_player: Player = list(
             filter(
                 lambda x: x.player_id == self.game.current_player,
                 self.game.players,
             )
         )[0]
-
-        # check if game is running
-        if not self.game.is_game_running():
-            self.game.reset_game()
-            pot_commits, stage_pot_commits = self.get_pot_commits()
-            observation = self.get_observations(
-                current_player.player_id, pot_commits, stage_pot_commits
-            )
-            reward = self.get_reward(pot_commits)[self.agent_id]
-            return observation, reward, True, None
 
         if action == 1 or action == ActionType.RAISE:
             # start of the game and the model choose to raise
@@ -380,11 +378,7 @@ class PokerEnv(gym.Env):
         else:
             val = None
 
-        # convert action
-        if format_action:
-            action = self.num_to_action[action]
-            action = round(action)
-
+        # translate action to ALL_IN
         if action == ActionType.RAISE and val >= current_player.chips:
             action = ActionType.ALL_IN
             val = None
@@ -403,29 +397,31 @@ class PokerEnv(gym.Env):
                 )
                 else ActionType.FOLD
             )
+            val = None
 
         # agent take action
         self.game.take_action(action, val)
         done = not self.game.is_hand_running()
 
-        if not done:
-            # Take the other agent actions (and values) in the game.
-            while self.game.current_player != self.agent_id and not done:
-                observations = None
-                if isinstance(self.opponents[self.game.current_player], RLAgent):
-                    observations = self.get_observations(
-                        self.game.current_player, *self.get_pot_commits()
-                    )
-                action, val = self.opponents[self.game.current_player].calculate_action(
-                    observations
-                )
-                if self.debug:
-                    print(
-                        f"{str(self.game.hand_phase)[10:]}: Player {self.game.current_player}, Chips: {self.game.players[self.game.current_player].chips}, Action - {str(action)[11:].capitalize()}{f': {val}' if val else ''}"
-                    )
 
-                self.game.take_action(action, val)
-                done = not self.game.is_hand_running()
+        # Take the other agent actions (and values) in the game.
+        while self.game.current_player != self.agent_id and not done:
+            observations = None
+            if isinstance(self.opponents[self.game.current_player], RLAgent):
+                observations = self.get_observations(
+                    self.game.current_player, *self.get_pot_commits()
+                )
+            action, val = self.opponents[self.game.current_player].calculate_action(
+                observations
+            )
+            if self.debug:
+                print(
+                    f"{str(self.game.hand_phase)[10:]}: Player {self.game.current_player}, Chips: {self.game.players[self.game.current_player].chips}, Action - {str(action)[11:].capitalize()}{f': {val}' if val else ''}"
+                )
+
+            # opponent take action
+            self.game.take_action(action, val)
+            done = not self.game.is_hand_running()
 
         # observations
 
@@ -437,7 +433,6 @@ class PokerEnv(gym.Env):
         # reward + info
         reward = self.get_reward(pot_commits)[self.agent_id]
         info = {"winners": self.get_winners()}
-
         return observation, reward, done, info
 
     def render(self):
@@ -455,20 +450,13 @@ class PokerEnv(gym.Env):
             self.previous_chips.update({x.player_id: x.chips})
 
         # initiate game engine
-        if self.game.is_game_running():
+        while not self.game.is_hand_running():
             self.game.start_hand()
-        else:
-            self.reset_game()
-            self.game.start_hand()
+            if not self.game.is_game_running():
+                self.reset_game()
 
         # take opponent actions in the game
         while self.game.current_player != self.agent_id:
-            if not self.game.is_hand_running() and self.game.is_game_running():
-                self.game.start_hand()
-            elif not self.game.is_game_running() and not self.game.is_hand_running():
-                self.reset_game()
-                self.game.start_hand()
-
             observations = None
             if isinstance(self.opponents[self.game.current_player], RLAgent):
                 observations = self.get_observations(
@@ -482,14 +470,12 @@ class PokerEnv(gym.Env):
                 print(
                     f"{str(self.game.hand_phase)[10:]}: Player {self.game.current_player}, Chips: {self.game.players[self.game.current_player].chips}, Action - {str(action)[11:].capitalize()}{f': {val}' if val else ''}"
                 )
-
             self.game.take_action(action, val)
 
-            if not self.game.is_hand_running() and self.game.is_game_running():
+            while not self.game.is_hand_running():
                 self.game.start_hand()
-            elif not self.game.is_game_running() and not self.game.is_hand_running():
-                self.reset_game()
-                self.game.start_hand()
+                if not self.game.is_game_running():
+                    self.reset_game()
 
         # calculate + return information
         current_player: Player = list(
@@ -558,7 +544,7 @@ if __name__ == "__main__":
     import cProfile
 
     with cProfile.Profile() as pr:
-        main(n_games=10000)
+        main(n_games=100000)
 
     stats = pstats.Stats(pr)
     stats.sort_stats(pstats.SortKey.TIME)

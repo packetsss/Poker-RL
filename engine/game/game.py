@@ -883,6 +883,7 @@ class TexasHoldEm:
 
         """
         if not self.is_hand_running():
+            print(self.hand_phase, [x.chips for x in self.players], self.buyin_history)
             raise ValueError("No hand is running")
 
         if not self.validate_move(self.current_player, action_type, value=value):

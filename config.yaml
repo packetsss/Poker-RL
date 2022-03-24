@@ -45,7 +45,7 @@ sac-six-player:
   players: 6
   opponents:
     rl-agent: 
-      sac: 0
-    random-agent: 2
+      sac: ["models/sac_20000"]
+    random-agent: 1
     crammer-agent: 3
   agent_id: 0

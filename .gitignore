@@ -461,7 +461,9 @@ OpenCover/
 junit/
 
 # Other
+tensorboard/
 models/
+logs/
 *.prof
 *.pgn
 .vsls.json
