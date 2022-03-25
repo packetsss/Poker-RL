@@ -53,3 +53,16 @@ sac-six-player:
     random-agent: 0
     crammer-agent: 3
   agent_id: 0
+
+ppo-six-player:
+  stack: 500
+  small-blind: 2
+  big-blind: 5
+  buyin_limit: 3
+  players: 6
+  opponents:
+    rl-agent:
+      sac: []
+    random-agent: 0
+    crammer-agent: 5
+  agent_id: 0
