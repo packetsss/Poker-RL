@@ -257,7 +257,7 @@ class TexasHoldEm:
         self.buyin_history = {}
         for player in self.players:
             self.buyin_history[player.player_id] = 0  ## Added to limit number of buyins
-            
+
         self.total_buyin_history = self.buyin_history.copy()
 
         self.btn_loc = random.choice(self.players).player_id
@@ -306,12 +306,14 @@ class TexasHoldEm:
             if self.players[player_id].chips == 0:
                 if self.add_chips_when_lose:
                     self.players[player_id].chips += self.buyin
+                    self.players[player_id].state = PlayerState.TO_CALL
                 elif self.buyin_history[player_id] < self.buyin_limit:
                     self.players[player_id].chips += self.buyin
                     self.buyin_history[player_id] += 1
                     self.total_buyin_history[player_id] += 1
-
-                self.players[player_id].state = PlayerState.SKIP
+                    self.players[player_id].state = PlayerState.TO_CALL
+                else:
+                    self.players[player_id].state = PlayerState.SKIP
             else:
                 self.players[player_id].state = PlayerState.TO_CALL
 

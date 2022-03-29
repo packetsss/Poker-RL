@@ -72,6 +72,9 @@ class RLAgent:
         action, val = action
         action = self.num_to_action[round(action)]
         val = round(val)
+        
+        # if self.player_id == 2:
+        #     print(action, val)
 
         if action == ActionType.RAISE:
             val += self.game.player_bet_amount(

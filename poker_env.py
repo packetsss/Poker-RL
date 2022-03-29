@@ -5,6 +5,7 @@ import numpy as np
 from gym import spaces, Env
 
 from engine import TexasHoldEm
+from engine.evaluator.evaluator import evaluate
 from engine.game.game import Player
 from engine.game.hand_phase import HandPhase
 from engine.game.action_type import ActionType
@@ -43,7 +44,7 @@ class PokerEnv(Env):
         if self.use_gui:
             self.gui.set_player_ids([self.agent_id])
 
-        self.max_value = self.buy_in * self.num_players * self.buyin_limit + 1
+        self.max_value = self.buy_in * self.num_players * (self.buyin_limit + 1) + 1
         self.debug = debug
         self.total_steps = 0
         self.total_episodes = 0
@@ -74,6 +75,7 @@ class PokerEnv(Env):
 
         self.game = TexasHoldEm(
             buyin=self.buy_in,
+            buyin_limit=self.buyin_limit,
             big_blind=self.big_blind,
             small_blind=self.small_blind,
             max_players=self.num_players,
@@ -98,7 +100,6 @@ class PokerEnv(Env):
         ]  # amplify winner's reward to encourage winning
 
         self.reward_range = np.array([-1, 1])
-
         # action space
         self.action_space = spaces.Box(
             np.array([0, 0]), np.array([3, self.max_value - 1]), (2,), dtype=np.int32
@@ -134,6 +135,7 @@ class PokerEnv(Env):
                 "stage_bettings": spaces.Tuple(
                     (spaces.Discrete(self.max_value),) * self.num_players
                 ),  # pot_commits for every player in the current stage
+                "hand_score": spaces.Discrete(7462), # our hand's score
             }
         )
 
@@ -331,6 +333,12 @@ class PokerEnv(Env):
                 self.card_to_observation(x) for x in self.game.hands[current_player_id]
             ]
 
+        # hand score
+        hand_score = 3731
+        if self.game.hand_phase != HandPhase.PREFLOP:
+            hand_score = 7462 - evaluate(self.game.hands[current_player_id], self.game.board)
+        # print("hs:", hand_score, self.game.hands[current_player_id], self.game.board)
+        
         # update observations
         return np.array(
             flatten_array(
@@ -345,6 +353,7 @@ class PokerEnv(Env):
                     sum([x.amount for x in self.game.pots]),
                     tuple(pot_commits.values()),
                     tuple(stage_pot_commits.values()),
+                    hand_score
                 ]
             )
         )

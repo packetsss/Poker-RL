@@ -5,16 +5,15 @@ tensorboard --logdir .\tensorboard\sac\
 """
 
 import yaml
-import datetime
 from stable_baselines3 import SAC
 from stable_baselines3.common.callbacks import EvalCallback
 
 from poker_env import PokerEnv
 
 train = True
-training_timestamps = 1500000
+training_timestamps = 500000
 
-current_model_version = "v5"
+current_model_version = "v6"
 
 with open("config.yaml") as f:
     config = yaml.load(f, Loader=yaml.FullLoader)
@@ -26,8 +25,8 @@ if train:
     eval_env = PokerEnv(config=config["sac-six-player"])
     eval_callback = EvalCallback(
         eval_env,
-        best_model_save_path=f"logs/{datetime.datetime.now().strftime('%m-%d %H.%M')}",
-        log_path=f"logs/{datetime.datetime.now().strftime('%m-%d %H.%M')}",
+        best_model_save_path=f"models/sac/{current_model_version}/{training_timestamps}_log",
+        log_path=f"models/sac/{current_model_version}/{training_timestamps}_log",
         n_eval_episodes=100,
         eval_freq=3000,
         deterministic=False,
@@ -38,7 +37,7 @@ if train:
         "MlpPolicy",
         env,
         verbose=1,
-        learning_starts=50000,
+        learning_starts=10000,
         learning_rate=0.00007,
         train_freq=(1, "episode"),
         tensorboard_log="tensorboard/sac",
@@ -48,7 +47,7 @@ if train:
     )
     model.save(f"models/sac/{current_model_version}/{training_timestamps}")
 else:
-    model_path = f"models/sac/{current_model_version}/1000000"  # "logs/best_model"  #
+    model_path = f"models/sac/{current_model_version}/{training_timestamps}"  # "logs/best_model"  #
     model = SAC.load(model_path, env=env)
 
     obs = env.reset()

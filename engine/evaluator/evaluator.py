@@ -14,6 +14,24 @@ import itertools
 from engine.card import card
 from engine.card.card import Card
 from engine.evaluator.lookup_table import LOOKUP_TABLE
+from engine.evaluator.two_lookup_table import two_suited, two_unsuited
+
+
+def _two(cards: List[Card]) -> int:
+    """
+    Using lookup table, return percentile of your hand with two cards
+    """
+    if len(cards) != 2:
+        raise ValueError("Only 2-card hands are supported by the Two evaluator")
+    
+    r0, r1 = cards[0].rank , cards[1].rank
+    if cards[0].suit == cards[1].suit:
+        if r0 < r1:
+            return two_suited[r0][r1]
+        else:
+            return two_suited[r1][r0]
+    else:
+        return two_unsuited[r0][r1]
 
 
 def _five(cards: List[Card]) -> int:
@@ -48,6 +66,9 @@ def evaluate(cards: List[Card], board: List[Card]) -> int:
         int: A number between 1 (highest) and 7462 (lowest) representing the relative
             hand rank of the given card.
     """
+    if not board:
+        return 7462 - round(_two(cards) * 7462)
+    
     all_cards = cards + board
     return min([_five(hand) for hand in itertools.combinations(all_cards, 5)])
 
