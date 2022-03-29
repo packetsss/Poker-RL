@@ -230,6 +230,7 @@ class TexasHoldEm:
         buyin_limit=3,
         max_players=9,
         add_chips_when_lose=False,
+        num_to_action=None,
     ):
         """
         Arguments:
@@ -245,6 +246,7 @@ class TexasHoldEm:
         self.buyin_limit = buyin_limit
         self.agent_id = agent_id
         self.game_restarts = 0
+        self.num_to_action = num_to_action
 
         self.add_chips_when_lose = add_chips_when_lose
 
@@ -665,6 +667,9 @@ class TexasHoldEm:
             bool: True if the move is valid, False o/w
 
         """
+        if not isinstance(action, ActionType):
+            action = self.num_to_action[action]
+
         # ALL_IN should be translated
         new_action, new_value = action, value
         if new_action == ActionType.ALL_IN:
@@ -887,7 +892,7 @@ class TexasHoldEm:
             raise ValueError("No hand is running")
 
         if not self.validate_move(self.current_player, action_type, value=value):
-            raise ValueError("Move is invalid!")
+            raise ValueError(f"Move is invalid!{action_type} - {value}")
 
         self._action = (action_type, value)
 

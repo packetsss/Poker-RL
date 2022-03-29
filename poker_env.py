@@ -45,28 +45,24 @@ class PokerEnv(Env):
 
         self.max_value = self.buy_in * self.num_players * self.buyin_limit + 1
         self.debug = debug
-
-        self.game = TexasHoldEm(
-            buyin=self.buy_in,
-            big_blind=self.big_blind,
-            small_blind=self.small_blind,
-            max_players=self.num_players,
-            agent_id=self.agent_id,
-            add_chips_when_lose=False,
-        )
+        self.total_steps = 0
+        self.total_episodes = 0
 
         # dictionary constants
+        self.action_dict = {x: {0: 0, 1: 0, 2: 0, 3: 0, 4: 0} for x in range(6)}
         self.num_to_action = {
             0: ActionType.CALL,
             1: ActionType.RAISE,
             2: ActionType.CHECK,
             3: ActionType.FOLD,
+            4: ActionType.ALL_IN,
         }
         self.action_to_num = {
             ActionType.CALL: 0,
             ActionType.RAISE: 1,
             ActionType.CHECK: 2,
             ActionType.FOLD: 3,
+            ActionType.ALL_IN: 4,
         }
         self.suit_to_int = {
             "s": 1,  # spades
@@ -75,6 +71,16 @@ class PokerEnv(Env):
             "c": 4,  # clubs
         }
         self.card_num_to_int = {"T": 9, "J": 10, "Q": 11, "K": 12, "A": 13}
+
+        self.game = TexasHoldEm(
+            buyin=self.buy_in,
+            big_blind=self.big_blind,
+            small_blind=self.small_blind,
+            max_players=self.num_players,
+            agent_id=self.agent_id,
+            add_chips_when_lose=False,
+            num_to_action=self.num_to_action,
+        )
 
         # step function
         self.fresh_start = True
@@ -353,33 +359,23 @@ class PokerEnv(Env):
         )[0]
 
         # convert action to ActionType
-        if format_action:
+        if not isinstance(action, ActionType):
             action = round(action)
             action = self.num_to_action[action]
 
-        if action == 1 or action == ActionType.RAISE:
-            # start of the game and the model choose to raise
-            previous_pot_commit = self.game.pots[0].raised
-            if self.fresh_start:
-                self.fresh_start = False
-                val = max(self.big_blind, val)
-
-            # middle of the game and the model choose to raise
-            else:
-                val = max(previous_pot_commit, val)
-
-            # make sure we add raise value to the prev commits since the game simulator is calculate raise differently
+        # add raise value to the prev commits
+        if action == ActionType.RAISE:
             if format_action:
                 val += self.game.player_bet_amount(
                     current_player.player_id
                 ) + self.game.chips_to_call(current_player.player_id)
             val = round(val)
-        else:
-            val = None
 
-        # translate action to ALL_IN
-        if action == ActionType.RAISE and val >= current_player.chips:
-            action = ActionType.ALL_IN
+            # translate action to ALL_IN
+            if val >= current_player.chips:
+                action = ActionType.ALL_IN
+                val = None
+        else:
             val = None
 
         # check valid action
@@ -402,6 +398,7 @@ class PokerEnv(Env):
             self.gui.print_action(self.game.current_player, action, val)
 
         # agent take action
+        self.action_dict[self.game.current_player][self.action_to_num[action]] += 1
         self.game.take_action(action, val)
         done = not self.game.is_hand_running()
 
@@ -424,6 +421,7 @@ class PokerEnv(Env):
                 self.gui.print_action(self.game.current_player, action, val)
 
             # opponent take action
+            self.action_dict[self.game.current_player][self.action_to_num[action]] += 1
             self.game.take_action(action, val)
             done = not self.game.is_hand_running()
 
@@ -442,6 +440,11 @@ class PokerEnv(Env):
         else:
             reward = self.get_reward(pot_commits)[self.agent_id]
         info = {"winners": self.get_winners()}
+
+        self.total_steps += 1
+        if self.total_steps % 3000 == 0:
+            print(f"\naction dict: {self.action_dict[self.agent_id]}")
+
         return observation, reward, done, info
 
     def render(self):
@@ -485,6 +488,7 @@ class PokerEnv(Env):
             if self.use_gui:
                 self.gui.print_action(self.game.current_player, action, val)
 
+            self.action_dict[self.game.current_player][self.action_to_num[action]] += 1
             self.game.take_action(action, val)
 
             while not self.game.is_hand_running():
@@ -506,6 +510,9 @@ class PokerEnv(Env):
         observation = self.get_observations(
             current_player.player_id, *self.get_pot_commits()
         )
+
+        self.total_episodes += 1
+
         return observation
 
     def close(self):
@@ -519,7 +526,7 @@ def main(n_games=1):
 
     gui = TextGUI()
 
-    poker = PokerEnv(config=config["sac-six-player"], debug=n_games <= 5, gui=gui)
+    poker = PokerEnv(config=config["sac-six-player"], debug=n_games <= 5, gui=None)
     agent = CrammerAgent(poker.game)
     agent.player_id = poker.agent_id
 
@@ -529,8 +536,8 @@ def main(n_games=1):
     # start step loop
     games_to_play = 0
     while 1:
-        # action, val = agent.calculate_action()
-        action, val = gui.accept_input()
+        action, val = agent.calculate_action()
+        # action, val = gui.accept_input()
         while not poker.game.validate_move(poker.game.current_player, action, val):
             print(f"{action} {val} is not valid for player {poker.game.current_player}")
             action, val = gui.accept_input()
@@ -540,7 +547,7 @@ def main(n_games=1):
         )
 
         if done:
-            if n_games >= 5:
+            if n_games <= 5:
                 print(
                     f"\nprev chips: {tuple(poker.previous_chips.values())}",
                     f"\nchips: {tuple([x.chips for x in poker.game.players])}",
@@ -565,6 +572,7 @@ def main(n_games=1):
         f"\nwinners: {info}",
         f"\nbuyin history: {tuple(poker.game.total_buyin_history.values())}",
         f"\nrestart times: {poker.game.game_restarts}",
+        f"\naction dict: {poker.action_dict}",
         "\n",
     )
     poker.close()
@@ -576,7 +584,7 @@ if __name__ == "__main__":
     import cProfile
 
     with cProfile.Profile() as pr:
-        main(n_games=100)
+        main(n_games=1000)
 
     stats = pstats.Stats(pr)
     stats.sort_stats(pstats.SortKey.TIME)

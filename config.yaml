@@ -1,6 +1,6 @@
 environment-constants:
-  reward_multiplier: 1.1
-  winner_reward_multiplier: 1.5
+  reward_multiplier: 0.8
+  winner_reward_multiplier: 3
 
 easy-six-player:
   stack: 500
@@ -43,15 +43,29 @@ hard-six-player:
 
 sac-six-player:
   stack: 500
+  small-blind: 7
+  big-blind: 15
+  buyin_limit: 3
+  players: 6
+  opponents:
+    rl-agent:
+      sac: ["models/sac/v4/1000000", "models/sac/v4/200000"]
+      # sac: []
+    random-agent: 1
+    crammer-agent: 2
+  agent_id: 0
+
+sac-test-six-player:
+  stack: 500
   small-blind: 2
   big-blind: 5
   buyin_limit: 3
   players: 6
   opponents:
     rl-agent:
-      sac: ["models/sac/v2/200000", "models/sac/v1/1000000"]
+      sac: ["models/sac/v2/200000", "models/sac/v1/1000000", "models/sac/v1/50000", "models/sac/v1/100000", "models/sac/v2/200000"]
     random-agent: 0
-    crammer-agent: 3
+    crammer-agent: 0
   agent_id: 0
 
 ppo-six-player:

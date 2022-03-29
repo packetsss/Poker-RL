@@ -22,26 +22,26 @@ class RandomAgent:
         while 1:
             rand = random.random()
             val = None
-            if rand < 0.10:
+            if rand < 0.05:
                 action = ActionType.FOLD
-            elif rand < 0.90:
+            elif rand < 0.15:
+                action = ActionType.CHECK
+            elif rand < 0.4:
                 action = ActionType.CALL
             else:
                 action = ActionType.RAISE
-                curr_player_id = self.game.current_player
                 val = (
-                    random.randint(2, 50)
-                    + self.game.player_bet_amount(curr_player_id)
-                    + self.game.chips_to_call(curr_player_id)
+                    random.randint(2, 15)
+                    + self.game.player_bet_amount(self.player_id)
+                    + self.game.chips_to_call(self.player_id)
                 )
 
-                if val >= self.game.players[curr_player_id].chips:
+                if val >= self.game.players[self.player_id].chips:
                     action = ActionType.ALL_IN
                     val = None
 
-            if self.game.validate_move(self.game.current_player, action, val):
+            if self.game.validate_move(self.player_id, action, val):
                 break
-
         return action, val
 
 
@@ -70,7 +70,18 @@ class RLAgent:
             raise ValueError("Observations is required for RL Agent")
         action, _states = self.model.predict(observations, deterministic=True)
         action, val = action
+        action = self.num_to_action[round(action)]
+        val = round(val)
 
+        if action == ActionType.RAISE:
+            val += self.game.player_bet_amount(
+                self.player_id
+            ) + self.game.chips_to_call(self.player_id)
+            val = round(val)
+            if val >= self.game.players[self.player_id].chips:
+                action = ActionType.ALL_IN
+                val = None
+        
         if not self.game.validate_move(self.player_id, action, val):
             action = (
                 ActionType.CHECK
@@ -78,6 +89,7 @@ class RLAgent:
                 else ActionType.FOLD
             )
             val = None
+
 
         return action, val
 

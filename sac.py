@@ -12,7 +12,9 @@ from stable_baselines3.common.callbacks import EvalCallback
 from poker_env import PokerEnv
 
 train = True
-training_timestamps = 200000
+training_timestamps = 1500000
+
+current_model_version = "v5"
 
 with open("config.yaml") as f:
     config = yaml.load(f, Loader=yaml.FullLoader)
@@ -36,16 +38,17 @@ if train:
         "MlpPolicy",
         env,
         verbose=1,
-        learning_starts=5000,
-        train_freq=(2, "episode"),
+        learning_starts=50000,
+        learning_rate=0.00007,
+        train_freq=(1, "episode"),
         tensorboard_log="tensorboard/sac",
     )
     model.learn(
         total_timesteps=training_timestamps, log_interval=3000, callback=eval_callback
     )
-    model.save(f"models/sac/v2/{training_timestamps}")
+    model.save(f"models/sac/{current_model_version}/{training_timestamps}")
 else:
-    model_path = f"models/sac/v1/1000000"  # "logs/best_model"  #
+    model_path = f"models/sac/{current_model_version}/1000000"  # "logs/best_model"  #
     model = SAC.load(model_path, env=env)
 
     obs = env.reset()
