@@ -1,6 +1,8 @@
 environment-constants:
   reward_multiplier: 1.1
   winner_reward_multiplier: 2.2
+  max_hand_score: 7462
+  hand_score_multiplier: 10
 
 easy-six-player:
   stack: 500

@@ -106,6 +106,8 @@ class PokerEnv(Env):
         )
 
         # observation space
+        self.max_hand_score = env_constants["max_hand_score"]
+        self.hand_score_multiplier = env_constants["hand_score_multiplier"]
         card_space = spaces.Tuple((spaces.Discrete(14), spaces.Discrete(5)))
         obs_space = spaces.Dict(
             {
@@ -135,7 +137,9 @@ class PokerEnv(Env):
                 "stage_bettings": spaces.Tuple(
                     (spaces.Discrete(self.max_value),) * self.num_players
                 ),  # pot_commits for every player in the current stage
-                "hand_score": spaces.Discrete(7462), # our hand's score
+                "hand_score": spaces.Discrete(
+                    self.max_hand_score * self.hand_score_multiplier
+                ),  # our hand's score
             }
         )
 
@@ -334,11 +338,13 @@ class PokerEnv(Env):
             ]
 
         # hand score
-        hand_score = 3731
+        hand_score = self.max_hand_score // 2
         if self.game.hand_phase != HandPhase.PREFLOP:
-            hand_score = 7462 - evaluate(self.game.hands[current_player_id], self.game.board)
-        # print("hs:", hand_score, self.game.hands[current_player_id], self.game.board)
-        
+            hand_score = self.max_hand_score - evaluate(
+                self.game.hands[current_player_id], self.game.board
+            )
+        hand_score *= self.hand_score_multiplier
+
         # update observations
         return np.array(
             flatten_array(
@@ -353,7 +359,7 @@ class PokerEnv(Env):
                     sum([x.amount for x in self.game.pots]),
                     tuple(pot_commits.values()),
                     tuple(stage_pot_commits.values()),
-                    hand_score
+                    hand_score,
                 ]
             )
         )
