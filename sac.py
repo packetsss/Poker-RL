@@ -12,8 +12,8 @@ from poker_env import PokerEnv
 
 train = True
 continue_training = False
-training_timestamps = 8000000
-current_model_version = "v7"
+training_timestamps = 10000000
+current_model_version = "v9"
 
 with open("config.yaml") as f:
     config = yaml.load(f, Loader=yaml.FullLoader)
@@ -39,10 +39,10 @@ if train:
             "MlpPolicy",
             env,
             verbose=1,
-            learning_starts=10000,
+            learning_starts=30000,
             learning_rate=0.00007,
-            train_freq=(1, "episode"),
-            tensorboard_log="tensorboard/sac",
+            train_freq=(5, "episode"),
+            tensorboard_log=f"models/sac/{current_model_version}/{training_timestamps}_tensorboard",
         )
     else:
         model: SAC = SAC.load(model_path, env=env)

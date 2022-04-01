@@ -2,7 +2,8 @@ environment-constants:
   reward_multiplier: 1.1
   winner_reward_multiplier: 2.2
   max_hand_score: 7462
-  hand_score_multiplier: 10
+  hand_score_multiplier: 3
+  hand_score_reward_multiplier: 0.3
 
 easy-six-player:
   stack: 500
@@ -45,13 +46,13 @@ hard-six-player:
 
 sac-six-player:
   stack: 500
-  small-blind: 7
-  big-blind: 15
-  buyin_limit: 2
+  small-blind: 2
+  big-blind: 5
+  buyin_limit: 0
   players: 6
   opponents:
     rl-agent:
-      # sac: ["models/sac/v5/5000000.zip", "models/sac/v5/1500000"]
+      # sac: ["models/sac/v8/6000000.zip"]
       sac: []
     random-agent: 1
     crammer-agent: 4

@@ -22,9 +22,9 @@ class RandomAgent:
         while 1:
             rand = random.random()
             val = None
-            if rand < 0.05:
+            if rand < 0.15:
                 action = ActionType.FOLD
-            elif rand < 0.15:
+            elif rand < 0.3:
                 action = ActionType.CHECK
             elif rand < 0.4:
                 action = ActionType.CALL

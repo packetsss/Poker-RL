@@ -1,21 +1,20 @@
 from typing import Union
 
 import yaml
+import pprint
 import numpy as np
+from copy import deepcopy
 from gym import spaces, Env
 
 from engine import TexasHoldEm
-from engine.evaluator.evaluator import evaluate
 from engine.game.game import Player
+from engine.gui.text_gui import TextGUI
 from engine.game.hand_phase import HandPhase
 from engine.game.action_type import ActionType
 from engine.game.history import PrehandHistory
+from engine.evaluator.evaluator import evaluate
 from engine.game.player_state import PlayerState
-
 from agent import RandomAgent, CrammerAgent, RLAgent
-from engine.gui.text_gui import TextGUI
-from old.game_engine import accept_input
-
 from utils.flatten import flatten_spaces, flatten_array
 
 
@@ -50,7 +49,10 @@ class PokerEnv(Env):
         self.total_episodes = 0
 
         # dictionary constants
-        self.action_dict = {x: {0: 0, 1: 0, 2: 0, 3: 0, 4: 0} for x in range(6)}
+        self.previous_action_dict = {
+            x: {0: 0, 1: 0, 2: 0, 3: 0, 4: 0} for x in range(6)
+        }
+        self.action_dict = deepcopy(self.previous_action_dict)
         self.num_to_action = {
             0: ActionType.CALL,
             1: ActionType.RAISE,
@@ -108,6 +110,9 @@ class PokerEnv(Env):
         # observation space
         self.max_hand_score = env_constants["max_hand_score"]
         self.hand_score_multiplier = env_constants["hand_score_multiplier"]
+        self.hand_score_reward_multiplier = env_constants[
+            "hand_score_reward_multiplier"
+        ]
         card_space = spaces.Tuple((spaces.Discrete(14), spaces.Discrete(5)))
         obs_space = spaces.Dict(
             {
@@ -194,6 +199,20 @@ class PokerEnv(Env):
             return {x[1][2][0]: (x[1][0], x[1][1], x[0]) for x in winners.items()}
         return None
 
+    def get_player_hand_score(self, player_id=None, percentage=False):
+        if player_id is None:
+            player_id = self.agent_id
+
+        hand_score = self.max_hand_score // 2
+        if self.game.hand_phase == HandPhase.PREFLOP:
+            hand_score = self.max_hand_score - evaluate(
+                self.game.hands[player_id], self.game.board
+            )
+        # print("hs:", hand_score, hand_score / (self.max_hand_score // 2) - 1, self.game.hands[player_id], self.game.board)
+        if percentage:
+            return hand_score / (self.max_hand_score // 2) - 1
+        return round(hand_score * self.hand_score_multiplier)
+
     def get_pot_commits(self):
         pot_commits = self.default_pot_commit.copy()
         stage_pot_commits = self.default_pot_commit.copy()
@@ -245,23 +264,21 @@ class PokerEnv(Env):
         elif (not self.game.is_hand_running() and not self.game._is_hand_over()) or (
             sum(player_active_dict.values()) > 1 and winners is not None
         ):
-            new_payouts = {}
-            for player_payout in payouts.items():
+            for player_id, payout in payouts.items():
                 # if player folded earlier
-                if player_payout[1] != 0:
-                    new_payouts[player_payout[0]] = player_payout[1]
+                if payout != 0:
+                    payouts[player_id] = payout
 
                 # if player wins
-                elif winners.get(player_payout[0]) is not None:
-                    new_payouts[player_payout[0]] = (
-                        self.game.players[player_payout[0]].chips
-                        - self.previous_chips[player_payout[0]]
+                elif winners.get(player_id) is not None:
+                    payouts[player_id] = (
+                        self.game.players[player_id].chips
+                        - self.previous_chips[player_id]
                     )  # this game chips - last game chips
 
                 # if player stay to the end and loses
                 else:
-                    new_payouts[player_payout[0]] = -pot_commits[player_payout[0]]
-            payouts = new_payouts
+                    payouts[player_id] = -pot_commits[player_id]
 
         # calculate percentage of the player's stack
         percent_payouts = {}
@@ -275,10 +292,17 @@ class PokerEnv(Env):
             if player.chips == 0:
                 percent_payouts[current_player_id] = -1
             else:
+                hand_score_reward = (
+                    self.get_player_hand_score(
+                        player_id=current_player_id, percentage=True
+                    )
+                    * self.hand_score_reward_multiplier
+                )
                 percent_payouts[current_player_id] = round(
                     max(
                         min(
-                            payout_percentage * self.reward_multiplier,
+                            payout_percentage * self.reward_multiplier
+                            - hand_score_reward,
                             1,
                         ),
                         -1,
@@ -337,14 +361,6 @@ class PokerEnv(Env):
                 self.card_to_observation(x) for x in self.game.hands[current_player_id]
             ]
 
-        # hand score
-        hand_score = self.max_hand_score // 2
-        if self.game.hand_phase != HandPhase.PREFLOP:
-            hand_score = self.max_hand_score - evaluate(
-                self.game.hands[current_player_id], self.game.board
-            )
-        hand_score *= self.hand_score_multiplier
-
         # update observations
         return np.array(
             flatten_array(
@@ -359,7 +375,7 @@ class PokerEnv(Env):
                     sum([x.amount for x in self.game.pots]),
                     tuple(pot_commits.values()),
                     tuple(stage_pot_commits.values()),
-                    hand_score,
+                    self.get_player_hand_score(),
                 ]
             )
         )
@@ -458,7 +474,20 @@ class PokerEnv(Env):
 
         self.total_steps += 1
         if self.total_steps % 3000 == 0:
-            print(f"\naction dict: {self.action_dict[self.agent_id]}")
+
+            d = {
+                kv1[0]: kv1[1] - kv2[1]
+                for kv1, kv2 in zip(
+                    self.action_dict[self.agent_id].items(),
+                    self.previous_action_dict[self.agent_id].items(),
+                )
+            }
+            print(
+                f"\nactions in 3k steps: {d}",
+                f"\nactions total: {self.action_dict[self.agent_id]}",
+            )
+
+            self.previous_action_dict = deepcopy(self.action_dict)
 
         return observation, reward, done, info
 
@@ -587,7 +616,7 @@ def main(n_games=1):
         f"\nwinners: {info}",
         f"\nbuyin history: {tuple(poker.game.total_buyin_history.values())}",
         f"\nrestart times: {poker.game.game_restarts}",
-        f"\naction dict: {poker.action_dict}",
+        f"\nactions: {pprint.pformat(poker.action_dict)}",
         "\n",
     )
     poker.close()
@@ -599,7 +628,7 @@ if __name__ == "__main__":
     import cProfile
 
     with cProfile.Profile() as pr:
-        main(n_games=1000)
+        main(n_games=5000)
 
     stats = pstats.Stats(pr)
     stats.sort_stats(pstats.SortKey.TIME)
