@@ -2,7 +2,7 @@ environment-constants:
   reward_multiplier: 1.1
   winner_reward_multiplier: 2.2
   max_hand_score: 7462
-  hand_score_multiplier: 0.5
+  hand_score_multiplier: 1
   hand_score_reward_multiplier: 0.1
 
 easy-six-player:
@@ -54,8 +54,8 @@ sac-six-player:
     rl-agent:
       # sac: ["models/sac/v9/10000000.zip"]
       sac: []
-    crammer-agent: 4
     random-agent: 1
+    crammer-agent: 4
   agent_id: 0
 
 sac-test-six-player:

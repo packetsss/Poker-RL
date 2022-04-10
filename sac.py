@@ -42,7 +42,7 @@ if train:
     )
 
     event_callback = SelfPlayCallback(
-        f"models/sac/{current_model_version}/{training_timestamps}_log/best_model.zip",
+        f"models/sac/{current_model_version}/{training_timestamps}_log/last_model.zip",
         rolling_starts=learning_starts,
     )
     callbacks = CallbackList([eval_callback, event_callback])

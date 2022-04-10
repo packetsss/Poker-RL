@@ -10,7 +10,7 @@ class SelfPlayCallback(BaseCallback):
     :param verbose: (int) Verbosity level 0: not output 1: info 2: debug
     """
 
-    def __init__(self, model_path, verbose=0, n_steps=5000, rolling_starts=50000):
+    def __init__(self, model_path: str, verbose=0, n_steps=5000, rolling_starts=50000):
         super(SelfPlayCallback, self).__init__(verbose)
         # Those variables will be accessible in the callback
         # (they are defined in the base class)
@@ -34,8 +34,9 @@ class SelfPlayCallback(BaseCallback):
         self.rolling_starts = rolling_starts
         self.n_steps = n_steps
 
-        self.rolling_dict = {1: 2, 2: 3, 3: 1}
-        self.rolling_id = 0
+        # use 4 agent slots for self-play
+        self.rolling_dict = {1: 2, 2: 3, 3: 4, 4: 1}
+        self.rolling_id = 1
 
     def _on_training_start(self) -> None:
         """
@@ -65,6 +66,7 @@ class SelfPlayCallback(BaseCallback):
             self.num_timesteps > self.rolling_starts
             and self.num_timesteps % self.n_steps == 0
         ):
+            self.model.save(self.model_path)
             agent = RLAgent(
                 self.training_env.envs[0].env,
                 self.model_path,
@@ -74,7 +76,16 @@ class SelfPlayCallback(BaseCallback):
             )
             self.training_env.envs[0].env.update_opponent(self.rolling_id, agent)
             self.rolling_id = self.rolling_dict[self.rolling_id]
-            print(self.num_timesteps, self.training_env.envs[0].env.opponents)
+            
+            logging_dict = {}
+            for k, v in self.training_env.envs[0].env.opponents.items():
+                if isinstance(v, RLAgent):
+                    logging_dict[k] = f"{v.model.num_timesteps}"
+            print(
+                "agent timesteps:",
+                agent.model.num_timesteps,
+                logging_dict,
+            )
 
         return True
 
