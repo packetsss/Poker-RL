@@ -4,8 +4,11 @@ To see Tensorboard:
 tensorboard --logdir ./models
 """
 
+import os
 import yaml
+import shutil
 from stable_baselines3 import SAC
+from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.callbacks import (
     CallbackList,
     EvalCallback,
@@ -14,27 +17,28 @@ from stable_baselines3.common.callbacks import (
 from poker_env import PokerEnv
 from utils.custom_callbacks import SelfPlayCallback
 
-
+# setup some params
 train = True
 continue_training = False
-training_timestamps = 1000000
-current_model_version = "v10"
+training_timestamps = 30000000
+current_model_version = "v11"
 
-learning_starts = 30000
+learning_starts = 50000
+model_path = f"models/sac/{current_model_version}/3500000"
 
+# create envs
 with open("config.yaml") as f:
     config = yaml.load(f, Loader=yaml.FullLoader)
-
 env = PokerEnv(config=config["sac-six-player"], debug=False)
-eval_env = PokerEnv(config=config["sac-six-player"])
+eval_env = Monitor(PokerEnv(config=config["sac-six-player"]))
 
-model_path = f"models/sac/{current_model_version}/3500000"
 if train:
-    eval_env = PokerEnv(config=config["sac-six-player"])
+    # create callbacks
+    log_path = f"models/sac/{current_model_version}/{training_timestamps}_log"
     eval_callback = EvalCallback(
         eval_env,
-        best_model_save_path=f"models/sac/{current_model_version}/{training_timestamps}_log",
-        log_path=f"models/sac/{current_model_version}/{training_timestamps}_log",
+        best_model_save_path=log_path,
+        log_path=log_path,
         n_eval_episodes=100,
         eval_freq=3000,
         deterministic=False,
@@ -42,11 +46,19 @@ if train:
     )
 
     event_callback = SelfPlayCallback(
-        f"models/sac/{current_model_version}/{training_timestamps}_log/last_model.zip",
+        log_path + "/last_model.zip",
         rolling_starts=learning_starts,
     )
     callbacks = CallbackList([eval_callback, event_callback])
 
+    # save current config
+    s = "config.yaml"
+    d = f"models/sac/{current_model_version}/config.yaml"
+    if not os.path.exists(d):
+        os.mkdir(f"models/sac/{current_model_version}")
+        shutil.copy(s, d)
+
+    # check for transfer learning
     if not continue_training:
         model = SAC(
             "MlpPolicy",
@@ -62,18 +74,23 @@ if train:
         model.load_replay_buffer(
             f"models/sac/{current_model_version}/{training_timestamps}_replay_buffer"
         )
+
+    # train the model
     model.learn(
         total_timesteps=training_timestamps,
         log_interval=3000,
         callback=callbacks,
         reset_num_timesteps=True,
     )
+
+    # save the model and replay buffer
     model.save(f"models/sac/{current_model_version}/{training_timestamps}")
     model.save_replay_buffer(
         f"models/sac/{current_model_version}/{training_timestamps}_replay_buffer"
     )
 
 else:
+    # test the model (deprecated, add agent in config.yaml and use poker_env.py instead)
     model = SAC.load(model_path, env=env)
 
     obs = env.reset()

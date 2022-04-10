@@ -10,7 +10,7 @@ class SelfPlayCallback(BaseCallback):
     :param verbose: (int) Verbosity level 0: not output 1: info 2: debug
     """
 
-    def __init__(self, model_path: str, verbose=0, n_steps=5000, rolling_starts=50000):
+    def __init__(self, model_path: str, verbose=0, n_steps=20000, rolling_starts=50000):
         super(SelfPlayCallback, self).__init__(verbose)
         # Those variables will be accessible in the callback
         # (they are defined in the base class)
@@ -61,6 +61,7 @@ class SelfPlayCallback(BaseCallback):
 
         :return: (bool) If the callback returns False, training is aborted early.
         """
+        # reference PokerEnv: self.training_env.envs[0].env
 
         if (
             self.num_timesteps > self.rolling_starts

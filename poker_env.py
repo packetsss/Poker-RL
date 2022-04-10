@@ -164,13 +164,13 @@ class PokerEnv(Env):
             for path in paths:
                 opponents.append(RLAgent(self, path, name, self.num_to_action))
 
-        crammer_agent = self.opponent_config["crammer-agent"]
-        for _ in range(crammer_agent):
-            opponents.append(CrammerAgent(self.game, self.num_to_action))
-
         random_agent = self.opponent_config["random-agent"]
         for _ in range(random_agent):
             opponents.append(RandomAgent(self.game))
+            
+        crammer_agent = self.opponent_config["crammer-agent"]
+        for _ in range(crammer_agent):
+            opponents.append(CrammerAgent(self.game, self.num_to_action))
 
         reserved = False
         for i in range(len(opponents)):

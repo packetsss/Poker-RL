@@ -64,7 +64,7 @@ class RLAgent:
             )
         else:
             raise NotImplementedError
-
+        
     def calculate_action(self, observations=None):
         if observations is None:
             raise ValueError("Observations is required for RL Agent")
