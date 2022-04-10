@@ -50,7 +50,7 @@ class PokerEnv(Env):
 
         # dictionary constants
         self.previous_action_dict = {
-            x: {0: 0, 1: 0, 2: 0, 3: 0, 4: 0} for x in range(6)
+            x: {0: 0, 1: 0, 2: 0, 3: 0, 4: 0} for x in range(self.num_players)
         }
         self.action_dict = deepcopy(self.previous_action_dict)
         self.num_to_action = {
@@ -90,6 +90,7 @@ class PokerEnv(Env):
         self.fresh_start = True
         self.previous_chips = {}
         self.default_pot_commit = {x.player_id: 0 for x in self.game.players}
+        self.total_player_winnings = self.default_pot_commit.copy()
 
         # gym environment
         self.spec = None
@@ -181,6 +182,11 @@ class PokerEnv(Env):
             else:
                 self.opponents[i + 1] = opponents[i]
                 self.opponents[i + 1].player_id = i + 1
+
+    def update_opponent(
+        self, player_id: int, agent: Union[RandomAgent, CrammerAgent, RLAgent]
+    ):
+        self.opponents[player_id] = agent
 
     def card_to_observation(self, card):
         card = list(str(card))
@@ -279,6 +285,11 @@ class PokerEnv(Env):
                 # if player stay to the end and loses
                 else:
                     payouts[player_id] = -pot_commits[player_id]
+
+        # record total winnings
+        if self.game.hand_phase == HandPhase.PREHAND:
+            for pid, chips in payouts.items():
+                self.total_player_winnings[pid] += chips
 
         # calculate percentage of the player's stack
         percent_payouts = {}
@@ -563,6 +574,17 @@ class PokerEnv(Env):
         # some cleanups
         print("Environment is closing...")
 
+        print(
+            f"\nprev chips: {tuple(self.previous_chips.values())}",
+            f"\nchips: {tuple([x.chips for x in self.game.players])}",
+            f"\ntotal chips in game: {sum(tuple([x.chips for x in self.game.players]))}",
+            f"\ntotal winnings: {tuple(self.total_player_winnings.values())}",
+            f"\nbuyin history: {tuple(self.game.total_buyin_history.values())}",
+            f"\nrestart times: {self.game.game_restarts}",
+            f"\nactions:\n{pprint.pformat(self.action_dict)}",
+            "\n",
+        )
+
 
 def main(n_games=1):
     with open("config.yaml") as f:
@@ -608,17 +630,8 @@ def main(n_games=1):
                 break
             obs = poker.reset()
 
-    print(
-        f"\nprev chips: {tuple(poker.previous_chips.values())}",
-        f"\nchips: {tuple([x.chips for x in poker.game.players])}",
-        f"\nsum chips: {sum(tuple([x.chips for x in poker.game.players]))}",
-        f"\nreward: {tuple(reward.values())}",
-        f"\nwinners: {info}",
-        f"\nbuyin history: {tuple(poker.game.total_buyin_history.values())}",
-        f"\nrestart times: {poker.game.game_restarts}",
-        f"\nactions: {pprint.pformat(poker.action_dict)}",
-        "\n",
-    )
+    # include best response (https://aipokertutorial.com/agent-evaluation/)
+    # probability response (compare best response winnings divided by agent winnings)
     poker.close()
 
 
@@ -628,7 +641,7 @@ if __name__ == "__main__":
     import cProfile
 
     with cProfile.Profile() as pr:
-        main(n_games=5000)
+        main(n_games=1000)
 
     stats = pstats.Stats(pr)
     stats.sort_stats(pstats.SortKey.TIME)

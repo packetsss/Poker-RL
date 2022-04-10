@@ -72,7 +72,7 @@ class RLAgent:
         action, val = action
         action = self.num_to_action[round(action)]
         val = round(val)
-        
+
         # if self.player_id == 2:
         #     print(action, val)
 
@@ -84,7 +84,7 @@ class RLAgent:
             if val >= self.game.players[self.player_id].chips:
                 action = ActionType.ALL_IN
                 val = None
-        
+
         if not self.game.validate_move(self.player_id, action, val):
             action = (
                 ActionType.CHECK
@@ -92,7 +92,6 @@ class RLAgent:
                 else ActionType.FOLD
             )
             val = None
-
 
         return action, val
 

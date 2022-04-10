@@ -2,8 +2,8 @@ environment-constants:
   reward_multiplier: 1.1
   winner_reward_multiplier: 2.2
   max_hand_score: 7462
-  hand_score_multiplier: 3
-  hand_score_reward_multiplier: 0.3
+  hand_score_multiplier: 0.5
+  hand_score_reward_multiplier: 0.1
 
 easy-six-player:
   stack: 500
@@ -52,10 +52,10 @@ sac-six-player:
   players: 6
   opponents:
     rl-agent:
-      # sac: ["models/sac/v8/6000000.zip"]
+      # sac: ["models/sac/v9/10000000.zip"]
       sac: []
-    random-agent: 1
     crammer-agent: 4
+    random-agent: 1
   agent_id: 0
 
 sac-test-six-player:
@@ -66,7 +66,14 @@ sac-test-six-player:
   players: 6
   opponents:
     rl-agent:
-      sac: ["models/sac/v2/200000", "models/sac/v1/1000000", "models/sac/v1/50000", "models/sac/v1/100000", "models/sac/v5/1500000"]
+      sac:
+        [
+          "models/sac/v2/200000",
+          "models/sac/v1/1000000",
+          "models/sac/v1/50000",
+          "models/sac/v1/100000",
+          "models/sac/v5/1500000",
+        ]
     random-agent: 0
     crammer-agent: 0
   agent_id: 0

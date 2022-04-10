@@ -1,19 +1,26 @@
 """
 To see Tensorboard:
 
-tensorboard --logdir .\tensorboard\sac\
+tensorboard --logdir ./models
 """
 
 import yaml
 from stable_baselines3 import SAC
-from stable_baselines3.common.callbacks import EvalCallback
+from stable_baselines3.common.callbacks import (
+    CallbackList,
+    EvalCallback,
+)
 
 from poker_env import PokerEnv
+from utils.custom_callbacks import SelfPlayCallback
+
 
 train = True
 continue_training = False
-training_timestamps = 10000000
-current_model_version = "v9"
+training_timestamps = 1000000
+current_model_version = "v10"
+
+learning_starts = 30000
 
 with open("config.yaml") as f:
     config = yaml.load(f, Loader=yaml.FullLoader)
@@ -34,12 +41,18 @@ if train:
         render=False,
     )
 
+    event_callback = SelfPlayCallback(
+        f"models/sac/{current_model_version}/{training_timestamps}_log/best_model.zip",
+        rolling_starts=learning_starts,
+    )
+    callbacks = CallbackList([eval_callback, event_callback])
+
     if not continue_training:
         model = SAC(
             "MlpPolicy",
             env,
             verbose=1,
-            learning_starts=30000,
+            learning_starts=learning_starts,
             learning_rate=0.00007,
             train_freq=(5, "episode"),
             tensorboard_log=f"models/sac/{current_model_version}/{training_timestamps}_tensorboard",
@@ -52,7 +65,7 @@ if train:
     model.learn(
         total_timesteps=training_timestamps,
         log_interval=3000,
-        callback=eval_callback,
+        callback=callbacks,
         reset_num_timesteps=True,
     )
     model.save(f"models/sac/{current_model_version}/{training_timestamps}")
