@@ -335,7 +335,7 @@ class PokerEnv(Env):
                         if agent_hand_score > 0:
                             fold_punishment = agent_hand_score
                         elif self.current_agent_action[2] == HandPhase.PREFLOP:
-                            fold_punishment = 0.1
+                            fold_punishment = 0.2
                         # print(fold_punishment, self.current_agent_action)
 
                 # clip reward to -1 to 1
