@@ -73,8 +73,6 @@ class RLAgent:
         action = self.num_to_action[round(action)]
         val = round(val)
 
-        # if self.player_id == 2:
-        #     print(action, val)
 
         if action == ActionType.RAISE:
             val += self.game.player_bet_amount(
@@ -84,6 +82,8 @@ class RLAgent:
             if val >= self.game.players[self.player_id].chips:
                 action = ActionType.ALL_IN
                 val = None
+        else:
+            val = None
 
         if not self.game.validate_move(self.player_id, action, val):
             action = (
@@ -177,9 +177,9 @@ class CrammerAgent:
             val = None
 
             # We definitely don't want to fold (unlikely).
-            if rand < 0.02:
+            if rand < 0.05:
                 action = ActionType.FOLD
-            elif rand < 0.32:
+            elif rand < 0.4:
                 if "CALL" in possible_actions:
                     action = ActionType.CALL
                 else:
@@ -204,12 +204,12 @@ class CrammerAgent:
             # The temp is near 1 if the difference between curr player odds and best player odds is small.
             # The temp is near 0 if the difference is large.
 
-            var = np.random.uniform() * (0.1 * 7461)
+            var = np.random.uniform(0.1, 1.5) * difference
 
             temp = 1 - (
                 max(0, min(7461, (difference + var))) / (7461 + 1)
             )  # [near 1 if difference is smaller, near 0 if difference is bigger].
-            temp *= np.random.uniform(0.01, 0.8)
+            temp *= np.random.uniform(0.9, 1)
             val = None
 
             # print("HAND SCORES:", hand_score)
@@ -225,14 +225,14 @@ class CrammerAgent:
             # # [2, 3] -> within 100 and 1000
             # # [3, 4] -> within 1000 and 10000
 
-            if temp < 0.3:  # If the difference is 4500 or greater (up to 7461).
+            if temp < 0.82:  # If the difference is 800 or greater (up to 7461).
                 action = ActionType.FOLD
-            elif temp < 0.60:  # If the difference is between 4500 and roughly 3750.
+            elif temp < 0.95:  # If the difference is between 5 and 800.
                 if "CALL" in possible_actions:
                     action = ActionType.CALL
                 else:
                     action = ActionType.CHECK
-            else:  # If the difference is less than 3750 (down to 0).
+            else:  # If the difference is less than 5 (down to 0).
                 action = ActionType.RAISE
                 proportion = np.random.beta(self.alpha, self.beta, size=1)
                 chips_bet = int(proportion * curr_player_chips)

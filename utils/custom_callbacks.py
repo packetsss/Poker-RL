@@ -64,7 +64,7 @@ class SelfPlayCallback(BaseCallback):
         # reference PokerEnv: self.training_env.envs[0].env
 
         if (
-            self.num_timesteps > self.rolling_starts
+            self.num_timesteps >= self.rolling_starts
             and self.num_timesteps % self.n_steps == 0
         ):
             self.model.save(self.model_path)

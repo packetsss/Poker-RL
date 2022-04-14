@@ -52,15 +52,15 @@ sac-six-player:
   players: 6
   opponents:
     rl-agent:
-      # sac:
-        # [
-        #   "models/sac/v10/8000000.zip",
-        #   "models/sac/v10/8000000_log/best_model.zip",
-        #   "models/sac/v10/8000000_log/best_model.zip",
-        #   "models/sac/v10/8000000_log/best_model.zip",
-        #   "models/sac/v10/8000000_log/best_model.zip",
-        # ]
-      sac: []
+      sac:
+        [
+          "models/sac/v11/30000000.zip",
+          # "models/sac/v10/8000000_log/best_model.zip",
+          # "models/sac/v10/8000000_log/best_model.zip",
+          # "models/sac/v10/8000000_log/best_model.zip",
+          # "models/sac/v10/8000000_log/best_model.zip",
+        ]
+      # sac: []
     random-agent: 1
     crammer-agent: 4
   agent_id: 0

@@ -17,11 +17,12 @@ from stable_baselines3.common.callbacks import (
 from poker_env import PokerEnv
 from utils.custom_callbacks import SelfPlayCallback
 
+
 # setup some params
 train = True
 continue_training = False
-training_timestamps = 30000000
-current_model_version = "v11"
+training_timestamps = 20000000
+current_model_version = "v12"
 
 learning_starts = 50000
 model_path = f"models/sac/{current_model_version}/3500000"
@@ -46,8 +47,7 @@ if train:
     )
 
     event_callback = SelfPlayCallback(
-        log_path + "/last_model.zip",
-        rolling_starts=learning_starts,
+        log_path + "/last_model.zip", rolling_starts=learning_starts, n_steps=200000
     )
     callbacks = CallbackList([eval_callback, event_callback])
 
@@ -71,9 +71,10 @@ if train:
         )
     else:
         model: SAC = SAC.load(model_path, env=env)
-        model.load_replay_buffer(
-            f"models/sac/{current_model_version}/{training_timestamps}_replay_buffer"
-        )
+        # optional: save replay buffer to continue train the model (caution: it's large!)
+        # model.load_replay_buffer(
+        #     f"models/sac/{current_model_version}/{training_timestamps}_replay_buffer"
+        # )
 
     # train the model
     model.learn(

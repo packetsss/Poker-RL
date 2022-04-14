@@ -87,10 +87,11 @@ class PokerEnv(Env):
         )
 
         # step function
-        self.fresh_start = True
+        self.current_agent_action = None
         self.previous_chips = {}
         self.default_pot_commit = {x.player_id: 0 for x in self.game.players}
         self.total_player_winnings = self.default_pot_commit.copy()
+        self.total_reward = self.default_pot_commit.copy()
 
         # gym environment
         self.spec = None
@@ -167,7 +168,7 @@ class PokerEnv(Env):
         random_agent = self.opponent_config["random-agent"]
         for _ in range(random_agent):
             opponents.append(RandomAgent(self.game))
-            
+
         crammer_agent = self.opponent_config["crammer-agent"]
         for _ in range(crammer_agent):
             opponents.append(CrammerAgent(self.game, self.num_to_action))
@@ -210,11 +211,21 @@ class PokerEnv(Env):
             player_id = self.agent_id
 
         hand_score = self.max_hand_score // 2
-        if self.game.hand_phase == HandPhase.PREFLOP:
+        if self.game.hand_phase != HandPhase.PREHAND and self.game.players[
+            player_id
+        ].state not in (PlayerState.OUT, PlayerState.SKIP):
             hand_score = self.max_hand_score - evaluate(
                 self.game.hands[player_id], self.game.board
             )
-        # print("hs:", hand_score, hand_score / (self.max_hand_score // 2) - 1, self.game.hands[player_id], self.game.board)
+        # print(
+        #     "hs:",
+        #     hand_score,
+        #     player_id,
+        #     self.game.hand_phase,
+        #     self.game.hands.get(player_id, 0),
+        #     self.game.players[player_id].state,
+        # )
+
         if percentage:
             return hand_score / (self.max_hand_score // 2) - 1
         return round(hand_score * self.hand_score_multiplier)
@@ -294,26 +305,46 @@ class PokerEnv(Env):
         # calculate percentage of the player's stack
         percent_payouts = {}
         for player in self.game.players:
-            current_player_id = player.player_id
-            payout_percentage = payouts[current_player_id] / (
-                self.previous_chips[current_player_id] + 0.001
-            )
-            if payout_percentage > 0:
-                payout_percentage *= self.winner_reward_multiplier
-            if player.chips == 0:
-                percent_payouts[current_player_id] = -1
+            player_id = player.player_id
+
+            # if player lost all chips
+            if player.chips == 0 and not self.game.is_hand_running():
+                percent_payouts[player_id] = -1
             else:
+                # calculate raw reward
+                payout_percentage = payouts[player_id] / (
+                    self.previous_chips[player_id] + 0.001
+                )
+                if payout_percentage > 0:
+                    payout_percentage *= self.winner_reward_multiplier
+
+                # calculate player's hand score
                 hand_score_reward = (
-                    self.get_player_hand_score(
-                        player_id=current_player_id, percentage=True
-                    )
+                    self.get_player_hand_score(player_id=player_id, percentage=True)
                     * self.hand_score_reward_multiplier
                 )
-                percent_payouts[current_player_id] = round(
+
+                # calculate punishment agent if fold with good hands
+                fold_punishment = 0
+                if player_id == self.agent_id:
+                    agent_hand_score = (
+                        hand_score_reward / self.hand_score_reward_multiplier
+                    )
+
+                    if self.current_agent_action[0] == ActionType.FOLD:
+                        if agent_hand_score > 0:
+                            fold_punishment = agent_hand_score
+                        elif self.current_agent_action[2] == HandPhase.PREFLOP:
+                            fold_punishment = 0.1
+                        # print(fold_punishment, self.current_agent_action)
+
+                # clip reward to -1 to 1
+                percent_payouts[player_id] = round(
                     max(
                         min(
                             payout_percentage * self.reward_multiplier
-                            - hand_score_reward,
+                            - hand_score_reward
+                            - fold_punishment,
                             1,
                         ),
                         -1,
@@ -440,8 +471,10 @@ class PokerEnv(Env):
             self.gui.print_action(self.game.current_player, action, val)
 
         # agent take action
+        self.current_agent_action = (action, val, self.game.hand_phase)
         self.action_dict[self.game.current_player][self.action_to_num[action]] += 1
         self.game.take_action(action, val)
+
         done = not self.game.is_hand_running()
 
         # Take the other agent actions (and values) in the game.
@@ -477,10 +510,15 @@ class PokerEnv(Env):
         )
 
         # reward + info
-        if get_all_rewards:
-            reward = self.get_reward(pot_commits)
-        else:
-            reward = self.get_reward(pot_commits)[self.agent_id]
+        reward = self.get_reward(pot_commits)
+
+        if done:
+            for i, rew in reward.items():
+                self.total_reward[i] += rew
+
+        if not get_all_rewards:
+            reward = reward[self.agent_id]
+
         info = {"winners": self.get_winners()}
 
         self.total_steps += 1
@@ -512,7 +550,7 @@ class PokerEnv(Env):
 
     def reset(self):
         # update previous chips
-        self.fresh_start = True
+        self.current_agent_action = None
         for x in self.game.players:
             self.previous_chips.update({x.player_id: x.chips})
 
@@ -579,6 +617,7 @@ class PokerEnv(Env):
             f"\nchips: {tuple([x.chips for x in self.game.players])}",
             f"\ntotal chips in game: {sum(tuple([x.chips for x in self.game.players]))}",
             f"\ntotal winnings: {tuple(self.total_player_winnings.values())}",
+            f"\ntotal reward:   {tuple(map(lambda x: round(x, 1), self.total_reward.values()))}",
             f"\nbuyin history: {tuple(self.game.total_buyin_history.values())}",
             f"\nrestart times: {self.game.game_restarts}",
             f"\nactions:\n{pprint.pformat(self.action_dict)}",
@@ -592,7 +631,7 @@ def main(n_games=1):
 
     gui = TextGUI()
 
-    poker = PokerEnv(config=config["sac-six-player"], debug=n_games <= 5, gui=None)
+    poker = PokerEnv(config=config["sac-six-player"], debug=n_games <= 50, gui=None)
     agent = CrammerAgent(poker.game)
     agent.player_id = poker.agent_id
 
@@ -613,12 +652,13 @@ def main(n_games=1):
         )
 
         if done:
-            if n_games <= 5:
+            if n_games <= 50:
                 print(
                     f"\nprev chips: {tuple(poker.previous_chips.values())}",
                     f"\nchips: {tuple([x.chips for x in poker.game.players])}",
                     f"\nsum chips: {sum(tuple([x.chips for x in poker.game.players]))}",
                     f"\nreward: {tuple(reward.values())}",
+                    f"\nhand scores: {tuple([poker.max_hand_score - x for x in poker.game.player_hand_scores.values()])}",
                     f"\nwinners: {info}",
                     f"\nbuyin history: {tuple(poker.game.total_buyin_history.values())}",
                     f"\nrestart times: {poker.game.game_restarts}",
@@ -641,7 +681,7 @@ if __name__ == "__main__":
     import cProfile
 
     with cProfile.Profile() as pr:
-        main(n_games=1000)
+        main(n_games=200)
 
     stats = pstats.Stats(pr)
     stats.sort_stats(pstats.SortKey.TIME)
