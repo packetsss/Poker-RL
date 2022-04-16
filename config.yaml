@@ -1,6 +1,6 @@
 environment-constants:
   reward_multiplier: 1.1
-  winner_reward_multiplier: 1.5
+  winner_reward_multiplier: 1.2
   max_hand_score: 7462
   hand_score_multiplier: 1
   hand_score_reward_multiplier: 0.1
@@ -54,8 +54,8 @@ sac-six-player:
     rl-agent:
       sac:
         [
-          "models/sac/v11/30000000.zip",
-          # "models/sac/v10/8000000_log/best_model.zip",
+          "models/sac/v13/15000000.zip",
+          # "models/sac/v12/20000000_log/best_model.zip",
           # "models/sac/v10/8000000_log/best_model.zip",
           # "models/sac/v10/8000000_log/best_model.zip",
           # "models/sac/v10/8000000_log/best_model.zip",

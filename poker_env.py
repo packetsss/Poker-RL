@@ -332,11 +332,10 @@ class PokerEnv(Env):
                     )
 
                     if self.current_agent_action[0] == ActionType.FOLD:
-                        if agent_hand_score > 0:
-                            fold_punishment = agent_hand_score
-                        elif self.current_agent_action[2] == HandPhase.PREFLOP:
-                            fold_punishment = 0.2
-                        # print(fold_punishment, self.current_agent_action)
+                        # if agent_hand_score > 0:
+                        #     fold_punishment = agent_hand_score
+                        if self.current_agent_action[2] == HandPhase.PREFLOP:
+                            fold_punishment = 0.3
 
                 # clip reward to -1 to 1
                 percent_payouts[player_id] = round(
@@ -672,6 +671,13 @@ def main(n_games=1):
 
     # include best response (https://aipokertutorial.com/agent-evaluation/)
     # probability response (compare best response winnings divided by agent winnings)
+
+    # use player's hand score ranking + total winnings in the reward function (try to compare with best response)
+    """
+    score : {1: 3201, 2: 301, 3: 5031, 4: 1242...}
+    max: 0, min: 7462 
+    chips won: (-1522, -1000, -1141, -1195, 155, 590) 
+    """
     poker.close()
 
 

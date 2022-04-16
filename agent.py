@@ -64,6 +64,7 @@ class RLAgent:
             )
         else:
             raise NotImplementedError
+        # print(self.model.num_timesteps)
         
     def calculate_action(self, observations=None):
         if observations is None:
