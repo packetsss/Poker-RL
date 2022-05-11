@@ -198,6 +198,9 @@ class PokerEnv(Env):
         card[1] = self.suit_to_int[card[1]]
         return tuple(card)
 
+    def clip(self, value, _min=-1, _max=1, round_to=3):
+        return round(max(min(value, _max), _min), round_to)
+
     def get_winners(self):
         if self.game.hand_history[HandPhase.SETTLE]:
             winners = self.game.hand_history[HandPhase.SETTLE].pot_winners
@@ -318,38 +321,56 @@ class PokerEnv(Env):
                 if payout_percentage > 0:
                     payout_percentage *= self.winner_reward_multiplier
 
-                # calculate player's hand score
-                hand_score_reward = (
-                    self.get_player_hand_score(player_id=player_id, percentage=True)
-                    * self.hand_score_reward_multiplier
-                )
+                # # calculate player's hand score
+                # hand_score_reward = (
+                #     self.get_player_hand_score(player_id=player_id, percentage=True)
+                #     * self.hand_score_reward_multiplier
+                # )
 
                 # calculate punishment agent if fold with good hands
                 fold_punishment = 0
                 if player_id == self.agent_id:
-                    agent_hand_score = (
-                        hand_score_reward / self.hand_score_reward_multiplier
-                    )
+                    # agent_hand_score = (
+                    #     hand_score_reward / self.hand_score_reward_multiplier
+                    # )
 
                     if self.current_agent_action[0] == ActionType.FOLD:
                         # if agent_hand_score > 0:
                         #     fold_punishment = agent_hand_score
                         if self.current_agent_action[2] == HandPhase.PREFLOP:
-                            fold_punishment = 0.3
+                            fold_punishment = 0.2
 
-                # clip reward to -1 to 1
-                percent_payouts[player_id] = round(
-                    max(
-                        min(
-                            payout_percentage * self.reward_multiplier
-                            - hand_score_reward
-                            - fold_punishment,
-                            1,
-                        ),
-                        -1,
-                    ),
-                    3,
+                # clip raw reward to -1 to 1
+                payout = self.clip(
+                    payout_percentage
+                    * self.reward_multiplier
+                    # - hand_score_reward
+                    - fold_punishment
                 )
+
+                # calculate hand score diff
+                diff = 0.5 - (
+                    (
+                        (
+                            self.game.player_hand_scores[self.agent_id]
+                            - min(self.game.player_hand_scores.values())
+                        )
+                        / self.max_hand_score
+                    )
+                    * 2
+                )
+
+                # add score diff to reward
+                percent_payouts[player_id] = self.clip(
+                    payout + ((payout - diff) * self.hand_score_reward_multiplier)
+                )
+                # print(
+                #     self.game.player_hand_scores,
+                #     diff,
+                #     (payout - diff),
+                #     payout,
+                #     percent_payouts[player_id],
+                # )
 
         return percent_payouts
 
@@ -687,7 +708,7 @@ if __name__ == "__main__":
     import cProfile
 
     with cProfile.Profile() as pr:
-        main(n_games=200)
+        main(n_games=60)
 
     stats = pstats.Stats(pr)
     stats.sort_stats(pstats.SortKey.TIME)

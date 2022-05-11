@@ -21,8 +21,8 @@ from utils.custom_callbacks import SelfPlayCallback
 # setup some params
 train = True
 continue_training = False
-training_timestamps = 15000000
-current_model_version = "v13"
+training_timestamps = 10000000
+current_model_version = "v16"
 
 learning_starts = 50000
 model_path = f"models/sac/{current_model_version}/3500000"

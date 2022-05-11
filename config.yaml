@@ -1,9 +1,10 @@
+# v16: hand score + chips won + 0.2 fold punishment
 environment-constants:
   reward_multiplier: 1.1
   winner_reward_multiplier: 1.2
   max_hand_score: 7462
   hand_score_multiplier: 1
-  hand_score_reward_multiplier: 0.1
+  hand_score_reward_multiplier: 0.3
 
 easy-six-player:
   stack: 500

@@ -82,11 +82,11 @@ class SelfPlayCallback(BaseCallback):
             for k, v in self.training_env.envs[0].env.opponents.items():
                 if isinstance(v, RLAgent):
                     logging_dict[k] = f"{v.model.num_timesteps}"
-            print(
-                "agent timesteps:",
-                agent.model.num_timesteps,
-                logging_dict,
-            )
+            # print(
+            #     "agent timesteps:",
+            #     agent.model.num_timesteps,
+            #     logging_dict,
+            # )
 
         return True
 
