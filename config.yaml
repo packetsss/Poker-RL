@@ -55,7 +55,7 @@ sac-six-player:
     rl-agent:
       sac:
         [
-          "models/sac/v13/15000000.zip",
+          #"models/sac/v13/15000000.zip",
           # "models/sac/v12/20000000_log/best_model.zip",
           # "models/sac/v10/8000000_log/best_model.zip",
           # "models/sac/v10/8000000_log/best_model.zip",
