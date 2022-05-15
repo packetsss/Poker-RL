@@ -1,5 +1,11 @@
 from tkinter import *
 from PIL import Image, ImageTk
+from typing import TYPE_CHECKING
+
+from engine.game.hand_phase import HandPhase
+from engine.game.action_type import ActionType
+if TYPE_CHECKING:
+    from poker_env import PokerEnv
 
 
 class Window():
@@ -8,7 +14,7 @@ class Window():
             self.root.title('Poker RL Robot')
             self.root.geometry("1200x650")
             self.root.configure(background="green")
-            self.game = poker
+            self.env = poker
             self.CARD_SIZE = (95, 144)
             self.CARD_SIZE_ROTATED = (144, 95)
             self.current_round = "Pre Flop"
@@ -17,6 +23,7 @@ class Window():
         """ Game States """
         
         def start_state(self):
+            self.step_game()
             self.set_community_cards()
             self.startButton = Button(self.root, text="Start Game", activebackground="#EEEDE7", 
                                 bg="#FFF5EE", bd=0, command=self.startCommand, height=5, width=40)
@@ -140,13 +147,17 @@ class Window():
         """ Object Functions """
 
         def reset_game(self):
-            self.game.reset()
+            self.env.reset()
 
         def set_community_cards(self):
+            table = self.get_community_cards()
+            print(table)
             temp_path = ".//cards//Ace of Spades.png"
             self.temp = Image.open(temp_path)
             self.temp = self.temp.resize(self.CARD_SIZE)
             self.temp = ImageTk.PhotoImage(self.temp)
+
+            get_community_cards(self)
 
             self.show_card_1 = Button(self.root, image= self.temp, command=None)
             self.show_card_2 = Button(self.root, image= self.temp, command=None)
@@ -160,10 +171,39 @@ class Window():
 
 
         def step_game(self, action=None, val=None):
-            pass
+            """Which moves poker_env from Pre-Flop, Flop, Turn, River
+            """
+            self.env.game.hand_phase == HandPhase.PREFLOP
+            
+            self.action, self.val = "",""
+            while not self.env.game.validate_move(self.env.game.current_player, self.action, self.val):
+                # display some error message
+                self.action, self.val = "",""
+
+            obs, reward, done, info = self.env.step(
+                (self.action, self.val), format_action=False, get_all_rewards=True
+            )
+
+            
+        def get_community_cards(self):
+            """Gets the Comunnity card dict from poker env
+            """
+            return self.env.game.community_cards
+            
+
+        def get_player_hands(self):
+            """Gets the player hands from dict
+            """
+            return self.env.game.hands 
+        
+
+        def get_all_platers_chips(self):
+            """Gets all player chips as a data structure
+            """
+            return [x.chips for x in self.env.game.players]
+
 
         """ GUI Text Functions """
-
 
         # General
         def set_pot(self, value):
@@ -227,6 +267,22 @@ class Window():
             if(self.current_round == "River"):
                 self.current_round = "End"
                 self.end_state()
+
+        def checkButton(self):
+            self.action, self.val = ActionType.CHECK, None
+            pass
+
+        def callButton(self):
+            self.action, self.val = ActionType.CALL, None
+            pass
+
+        def raiseButton(self):
+            self.action, self.val = ActionType.RAISE, "some value"
+            pass
+
+        def foldButton(self):
+            self.action, self.val = ActionType.FOLD, None
+            pass
                     
 
         def exit(self):
