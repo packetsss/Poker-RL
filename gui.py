@@ -71,6 +71,11 @@ class Window():
             self.default_rotated = self.default_rotated.resize(self.CARD_SIZE_ROTATED)
             self.default_rotated = ImageTk.PhotoImage(self.default_rotated)
 
+            # Player Cards
+            self.player_card_1.place(relx=0.35+0.10, rely=0.76, anchor='center')
+
+            self.player_card_2.place(relx=0.35+0.20, rely=0.76, anchor='center')
+
 
             # Opponent 1
             self.opp_1_card_1 = Button(self.root, image= self.default_rotated, command=None)
@@ -86,13 +91,7 @@ class Window():
             self.opp_2_card_2 = Button(self.root, image= self.default_rotated, command=None)
             self.opp_2_card_2.place(relx=0.928, rely=0.57, anchor='center')
 
-            # Player Cards
-            self.player_card_1 = Button(self.root, image= self.default_card, command=None)
-            self.player_card_1.place(relx=bx_pos+0.10, rely=0.76, anchor='center')
-
-            self.player_card_2 = Button(self.root, image= self.default_card,command=None)
-            self.player_card_2.place(relx=bx_pos+0.20, rely=0.76, anchor='center')
-
+            
             # Setting Text boxes
 
             # General
@@ -101,6 +100,8 @@ class Window():
 
             # Player
             self.set_player_chips(1000)
+
+            
 
             # Opponent 1
             self.set_opp1_chips(1000)
@@ -152,6 +153,11 @@ class Window():
             self.show_card_3 = Button(self.root, image= self.temp, command=None)
             self.show_card_4 = Button(self.root, image= self.temp, command=None)
             self.show_card_5 = Button(self.root, image= self.temp, command=None)
+
+            # Player Cards
+            self.player_card_1 = Button(self.root, image= self.temp, command=None)
+            self.player_card_2 = Button(self.root, image= self.temp,command=None)
+
 
         def step_game(self, action=None, val=None):
             pass
@@ -217,7 +223,7 @@ class Window():
                 self.turn()
             if(self.current_round == "Turn"):
                 self.current_round = "River"
-                self.river=()
+                self.river()
             if(self.current_round == "River"):
                 self.current_round = "End"
                 self.end_state()
