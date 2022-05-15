@@ -6,6 +6,8 @@ import numpy as np
 from copy import deepcopy
 from gym import spaces, Env
 
+from gui import Window
+
 from engine import TexasHoldEm
 from engine.game.game import Player
 from engine.gui.text_gui import TextGUI
@@ -645,15 +647,22 @@ class PokerEnv(Env):
         )
 
 
-def main(n_games=1):
+def main(n_games=1, show_gui=True):
     with open("config.yaml") as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
 
-    gui = TextGUI()
+    # gui = TextGUI()
+    
 
     poker = PokerEnv(config=config["sac-six-player"], debug=n_games <= 50, gui=None)
     agent = CrammerAgent(poker.game)
     agent.player_id = poker.agent_id
+
+    # gui commands
+    if(show_gui):
+        gui = Window(poker)
+        gui.reset_game()
+        gui.start_state()
 
     # reset environment
     obs = poker.reset()
