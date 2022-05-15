@@ -671,7 +671,7 @@ def main(n_games=1, show_gui=True):
     games_to_play = 0
     while 1:
         action, val = agent.calculate_action()
-        # action, val = gui.accept_input()
+        #action, val = gui.accept_input()
         while not poker.game.validate_move(poker.game.current_player, action, val):
             print(f"{action} {val} is not valid for player {poker.game.current_player}")
             action, val = gui.accept_input()
