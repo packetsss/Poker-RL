@@ -134,6 +134,7 @@ class Window():
 
             # Player
             self.set_player_chips(1000)
+            self.set_player_round_bet(0)
 
             # Opponent 1
             self.set_opp1_chips(1000)
@@ -300,17 +301,34 @@ class Window():
                                 bg ="#FFFFF0", bd=2, height = 2, width= 50)
             self.round_name.place(relx=0.50, rely=0.025, anchor='center')
 
+        def pop_up_raise(self):
+            self.top = TopLevel(self.root)
+            self.top.geometry("50x50")
+
+            self.raise_val = entry(self.top, width=20)
+            self.raise_val.pack()
+
+            button = Button(self.top, text="Enter", command=lambda: button_pressed.set("button pressed"))
+            button.wait_variable(button_pressed)
+
+            self.top.mainloop()
+
         # Player
         def set_player_chips(self, value):
             self.player_chips =  Label(self.root, text = "Chips: " + str(value), 
                                 bg ="#FFFFF0", height = 2, width= 15)
             self.player_chips.place(relx=0.35, rely=0.70, anchor='center')
 
+        def set_player_round_bet(self, value):
+            self.player_round_bet =  Label(self.root, text = "Chips: " + str(value), 
+                                bg ="#FFFFF0", height = 2, width= 15)
+            self.player_round_bet.place(relx=0.35, rely=0.76, anchor='center')
+
         # Opponent 1
         def set_opp1_chips(self, value):
             self.opp1_chips =  Label(self.root, text = "Chips: " + str(value), 
                                 bg ="#FFFFF0", bd=2, height = 2, width= 15)
-            self.opp1_chips.place(relx=0.82, rely=0.63, anchor='center')
+            self.opp1_chips.place(relx=0.82, rely=0.75, anchor='center')
 
         def set_opp1_move(self, value):
             self.opp1_chips =  Label(self.root, text = "Prev Move: " + value, 
@@ -320,14 +338,14 @@ class Window():
         def set_opp1_name(self):
             self.opp1_name =  Label(self.root, text = "Opponent 1", 
                                 bg ="#FFFFF0", bd=2, height = 2, width= 15)
-            self.opp1_name.place(relx=0.82, rely=0.75, anchor='center')
+            self.opp1_name.place(relx=0.82, rely=0.63, anchor='center')
 
 
         # Opponent 2
         def set_opp2_chips(self, value):
             self.opp2_chips =  Label(self.root, text = "Chips: " + str(value), 
                                 bg ="#FFFFF0", bd=2, height = 2, width= 15)
-            self.opp2_chips.place(relx=0.82, rely=0.18, anchor='center')
+            self.opp2_chips.place(relx=0.82, rely=0.30, anchor='center')
 
         def set_opp2_move(self, value):
             self.opp2_chips =  Label(self.root, text = "Prev Move: " + value, 
@@ -337,14 +355,14 @@ class Window():
         def set_opp2_name(self):
             self.opp2_name =  Label(self.root, text = "Opponent 2", 
                                 bg ="#FFFFF0", bd=2, height = 2, width= 15)
-            self.opp2_name.place(relx=0.82, rely=0.30, anchor='center')
+            self.opp2_name.place(relx=0.82, rely=0.18, anchor='center')
 
         # Opponent 3
         def set_opp3_chips(self, value):
             self.opp3_chips =  Label(self.root, text = "Chips: " + str(value), 
                                 bg ="#FFFFF0", bd=2, height = 2, width= 15)
         
-            self.opp3_chips.place(relx=0.18, rely=0.18, anchor='center')
+            self.opp3_chips.place(relx=0.18, rely=0.30, anchor='center')
         
         def set_opp3_move(self, value):
             self.opp3_chips =  Label(self.root, text = "Prev Move: " + value, 
@@ -354,7 +372,7 @@ class Window():
         def set_opp3_name(self):
             self.opp3_name =  Label(self.root, text = "Opponent 3", 
                                 bg ="#FFFFF0", bd=2, height = 2, width= 15)
-            self.opp3_name.place(relx=0.18, rely=0.30, anchor='center')
+            self.opp3_name.place(relx=0.18, rely=0.18, anchor='center')
 
 
         # Opponent 4
@@ -362,7 +380,7 @@ class Window():
             self.opp4_chips =  Label(self.root, text = "Chips: " + str(value), 
                                 bg ="#FFFFF0", bd=2, height = 2, width= 15)
         
-            self.opp4_chips.place(relx=0.18, rely=0.48, anchor='center')
+            self.opp4_chips.place(relx=0.18, rely=0.60, anchor='center')
         
         def set_opp4_move(self, value):
             self.opp4_chips =  Label(self.root, text = "Prev Move: " + value, 
@@ -373,7 +391,7 @@ class Window():
         def set_opp4_name(self):
             self.opp4_name =  Label(self.root, text = "Opponent 4", 
                                 bg ="#FFFFF0", bd=2, height = 2, width= 15)
-            self.opp4_name.place(relx=0.18, rely=0.60, anchor='center')
+            self.opp4_name.place(relx=0.18, rely=0.48, anchor='center')
 
 
         # Opponent 5
@@ -381,7 +399,7 @@ class Window():
             self.opp5_chips =  Label(self.root, text = "Chips: " + str(value), 
                                 bg ="#FFFFF0", bd=2, height = 2, width= 15)
         
-            self.opp5_chips.place(relx=0.18, rely=0.78, anchor='center')
+            self.opp5_chips.place(relx=0.18, rely=0.90, anchor='center')
         
         def set_opp5_move(self, value):
             self.opp5_chips =  Label(self.root, text = "Prev Move: " + value, 
@@ -391,10 +409,7 @@ class Window():
         def set_opp5_name(self):
             self.opp5_name =  Label(self.root, text = "Opponent 5", 
                                 bg ="#FFFFF0", bd=2, height = 2, width= 15)
-            self.opp5_name.place(relx=0.18, rely=0.90, anchor='center')
-
-
-
+            self.opp5_name.place(relx=0.18, rely=0.78, anchor='center')
 
 
         """ Button Commands"""
@@ -426,6 +441,7 @@ class Window():
             pass
 
         def raiseButton(self):
+            self.pop_up_raise()
             self.action, self.val = ActionType.RAISE, "some value"
             pass
 
