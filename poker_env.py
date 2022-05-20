@@ -664,6 +664,7 @@ def main(n_games=1, show_gui=True):
         gui.reset_game()
         gui.start_state()
 
+
     # reset environment
     obs = poker.reset()
 
