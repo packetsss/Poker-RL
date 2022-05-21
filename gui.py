@@ -329,6 +329,9 @@ class Window():
             self.set_opp5_chips(pot_vals[5])
             self.set_opp5_move("None")
             self.set_opp5_name()
+
+            self.suggestions_box()
+            self.error_box()
             
             self.update = True
 
@@ -372,6 +375,20 @@ class Window():
             self.player_round_bet =  Label(self.root, text = "Chips: " + str(value), 
                                 bg ="#FFFFF0", height = 2, width= 15)
             self.player_round_bet.place(relx=0.35, rely=0.76, anchor='center')
+
+        def suggestions_box(self, msg="Suggestions"):
+            if(self.update):
+                self.player_suggestion.destroy()
+            self.player_suggestion =  Label(self.root, text = msg, 
+                                bg ="#FFFFF0", height = 5, width= 15)
+            self.player_suggestion.place(relx=0.65, rely=0.76, anchor='center')
+
+        def error_box(self, msg="Error"):
+            if(self.update):
+                self.player_error.destroy()
+            self.player_error =  Label(self.root, text = msg, 
+                                bg ="#FFFFF0", height = 2, width= 25)
+            self.player_error.place(relx=0.50, rely=0.59, anchor='center')
 
         # Opponent 1
         def set_opp1_chips(self, value):
