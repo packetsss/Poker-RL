@@ -297,7 +297,6 @@ class Window():
         def update_all(self):
             # Setting Text boxes
             pot_vals = self.get_all_players_chips()
-            print(self.get_all_players_moves())
             # General
             self.set_pot(0)
             self.set_round_name(self.current_round)
