@@ -661,7 +661,6 @@ def main(n_games=1, show_gui=True):
     # gui commands
     if(show_gui):
         gui = Window(poker)
-        gui.reset_game()
         gui.start_state()
 
 

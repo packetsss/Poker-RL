@@ -34,7 +34,6 @@ class Window():
         """ Game States """
         
         def start_state(self):
-            self.set_community_cards()
             self.startButton = Button(self.root, text="Start Game", activebackground="#EEEDE7", 
                                 bg="#FFF5EE", bd=0, command=self.startCommand, height=5, width=40)
             self.startButton.place(relx=0.5, rely=0.5, anchor='center')
@@ -43,6 +42,7 @@ class Window():
 
         
         def pre_flop(self):
+            self.set_community_cards()
             # Creating table card objects
             default_card_path = ".//cards//default.png"
             self.default_card = Image.open(default_card_path)
@@ -165,18 +165,21 @@ class Window():
             self.delete_all()
             self.show_cards()
 
+            self.restartButton = Button(self.root, text="Next Game", activebackground="#0000FF", 
+                                bg="#7EC8E3", fg="#FFFFFF", bd=0, command=self.reset_game, height=3, width=15)
+            self.restartButton.place(relx=0.5, rely=0.5, anchor='center')
+
             self.root.mainloop()
 
         """ Object Functions """
 
         def show_cards(self):
+            self.objectsToDestroy = []
             moves = self.get_all_players_moves()
             play = []
             for m in moves:
                 play.append(self.move_to_str(m))
-            
-            posx = 0.05
-            posy = 0.6
+
 
             if(play[0] != "None"):
                 self.p_name = Label(self.root, text = "You", 
@@ -184,51 +187,71 @@ class Window():
                 self.p_name.place(relx=0.5, rely=0.76-0.15, anchor='center')
                 self.player_card_1.place(relx=0.35+0.10, rely=0.76, anchor='center')
                 self.player_card_2.place(relx=0.35+0.20, rely=0.76, anchor='center')
+                self.objectsToDestroy.append(self.p_name)
+                self.objectsToDestroy.append(self.player_card_1)
+                self.objectsToDestroy.append(self.player_card_2)
+
 
             if(play[1] != "None"):
                 self.o1_name = Label(self.root, text = "Opp1", 
                                 bg ="#FFFFF0", bd=2, height = 2, width= 8)
-                self.o1_name.place(relx=posx+0.05, rely=posy-0.15, anchor='center')
+                self.o1_name.place(relx=0.828+0.05, rely=0.75-0.15, anchor='center')
 
-                self.opp1_1.place(relx=0.928, rely=0.63, anchor='center')
-                self.opp1_2.place(relx=0.928, rely=0.75, anchor='center')
+                self.opp1_c1.place(relx=0.928, rely=0.75, anchor='center')
+                self.opp1_c2.place(relx=0.828, rely=0.75, anchor='center')
+
+                self.objectsToDestroy.append(self.o1_name)
+                self.objectsToDestroy.append(self.opp1_c1)
+                self.objectsToDestroy.append(self.opp1_c2)
 
 
             if(play[2] != "None"):
                 self.o2_name = Label(self.root, text = "Opp2", 
                                 bg ="#FFFFF0", bd=2, height = 2, width= 8)
-                self.o2_name.place(relx=posx+0.25, rely=posy-0.15, anchor='center')
+                self.o2_name.place(relx=0.828+0.05, rely=0.30-0.15, anchor='center')
 
-                self.opp2_1.place(relx=0.928, rely=0.18, anchor='center')
-                self.opp2_2.place(relx=0.928, rely=0.30, anchor='center')
+                self.opp2_c1.place(relx=0.928, rely=0.30, anchor='center')
+                self.opp2_c2.place(relx=0.828, rely=0.30, anchor='center')
+
+                self.objectsToDestroy.append(self.o2_name)
+                self.objectsToDestroy.append(self.opp2_c1)
+                self.objectsToDestroy.append(self.opp2_c2)
 
             if(play[3] != "None"):
                 self.o3_name = Label(self.root, text = "Opp3", 
                                 bg ="#FFFFF0", bd=2, height = 2, width= 8)
-                self.o3_name.place(relx=posx+0.45, rely=posy-0.15, anchor='center')
+                self.o3_name.place(relx=0.072+0.05, rely=0.30-0.15, anchor='center')
 
-                self.opp3_1.place(relx=0.072, rely=0.18, anchor='center')
-                self.opp3_2.place(relx=0.072, rely=0.30, anchor='center')
+                self.opp3_c1.place(relx=0.072, rely=0.30, anchor='center')
+                self.opp3_c2.place(relx=0.172, rely=0.30, anchor='center')
+
+                self.objectsToDestroy.append(self.o3_name)
+                self.objectsToDestroy.append(self.opp3_c1)
+                self.objectsToDestroy.append(self.opp3_c2)
 
             if(play[4] != "None"):
                 self.o4_name = Label(self.root, text = "Opp4", 
                                 bg ="#FFFFF0", bd=2, height = 2, width= 8)
-                self.o4_name.place(relx=posx+0.65, rely=posy-0.15, anchor='center')
+                self.o4_name.place(relx=0.072+0.05, rely=0.60-0.15, anchor='center')
 
-                self.opp4_1.place(relx=0.072, rely=0.48, anchor='center')
-                self.opp4_2.place(relx=0.072, rely=0.60, anchor='center')
+                self.opp4_c1.place(relx=0.072, rely=0.60, anchor='center')
+                self.opp4_c2.place(relx=0.172, rely=0.60, anchor='center')
+
+                self.objectsToDestroy.append(self.o4_name)
+                self.objectsToDestroy.append(self.opp4_c1)
+                self.objectsToDestroy.append(self.opp4_c2)
 
             if(play[5] != "None"):
                 self.o5_name = Label(self.root, text = "Opp5", 
                                 bg ="#FFFFF0", bd=2, height = 2, width= 8)
-                self.o5_name.place(relx=posx+0.85, rely=posy-0.15, anchor='center')
+                self.o5_name.place(relx=0.072+0.05, rely=0.90-0.15, anchor='center')
 
-                self.opp5_1.place(relx=0.072, rely=0.78, anchor='center')
-                self.opp5_2.place(relx=0.072, rely=0.90, anchor='center')
+                self.opp5_c1.place(relx=0.072, rely=0.90, anchor='center')
+                self.opp5_c2.place(relx=0.172, rely=0.90, anchor='center')
 
-
-            
-            
+                self.objectsToDestroy.append(self.o5_name)
+                self.objectsToDestroy.append(self.opp5_c1)
+                self.objectsToDestroy.append(self.opp5_c2)
 
         def delete_all(self):
             
@@ -286,9 +309,26 @@ class Window():
             
 
         def reset_game(self):
+            try:
+                self.restartButton.destroy()
+                self.round_name.destroy()
+                self.pot_value.destroy()
+                self.show_card_1.destroy()
+                self.show_card_2.destroy()
+                self.show_card_3.destroy()
+                self.show_card_4.destroy()
+                self.show_card_5.destroy()
+
+                for d in self.objectsToDestroy:
+                    d.destroy()
+
+            except:
+                pass
+            
             self.env.reset()
             self.update = False
-            self.start_state()
+            self.current_round = "Pre Flop" 
+            self.pre_flop()
 
         def get_card_image_links(self, set_vals):
 
@@ -337,7 +377,6 @@ class Window():
             self.p_2 = Image.open(self.player_hand[1])
             self.p_2 = self.p_2.resize(self.CARD_SIZE)
             self.p_2 = ImageTk.PhotoImage(self.p_2)
-
 
             self.opp1_1 = Image.open(self.opp1_hand[0])
             self.opp1_1 = self.opp1_1.resize(self.CARD_SIZE)
@@ -392,20 +431,20 @@ class Window():
             self.player_card_1 = Button(self.root, image= self.p_1, command=None)
             self.player_card_2 = Button(self.root, image= self.p_2,command=None)
             
-            self.opp1_1 = Button(self.root, image= self.opp1_1, command=None)
-            self.opp1_2 = Button(self.root, image= self.opp1_2, command=None)
+            self.opp1_c1 = Button(self.root, image= self.opp1_1, command=None)
+            self.opp1_c2 = Button(self.root, image= self.opp1_2, command=None)
 
-            self.opp2_1 = Button(self.root, image= self.opp2_1, command=None)
-            self.opp2_2 = Button(self.root, image= self.opp2_2, command=None)
+            self.opp2_c1 = Button(self.root, image= self.opp2_1, command=None)
+            self.opp2_c2 = Button(self.root, image= self.opp2_2, command=None)
 
-            self.opp3_1 = Button(self.root, image= self.opp3_1, command=None)
-            self.opp3_2 = Button(self.root, image= self.opp3_2, command=None)
+            self.opp3_c1 = Button(self.root, image= self.opp3_1, command=None)
+            self.opp3_c2 = Button(self.root, image= self.opp3_2, command=None)
 
-            self.opp4_1 = Button(self.root, image= self.opp4_1, command=None)
-            self.opp4_2 = Button(self.root, image= self.opp4_2, command=None)
+            self.opp4_c1 = Button(self.root, image= self.opp4_1, command=None)
+            self.opp4_c2 = Button(self.root, image= self.opp4_2, command=None)
 
-            self.opp5_1 = Button(self.root, image= self.opp5_1, command=None)
-            self.opp5_2 = Button(self.root, image= self.opp5_2, command=None)
+            self.opp5_c1 = Button(self.root, image= self.opp5_1, command=None)
+            self.opp5_c2 = Button(self.root, image= self.opp5_2, command=None)
 
 
         def step_game(self):
@@ -471,6 +510,9 @@ class Window():
 
         def validate_move(self):
             return self.env.game.validate_move(self.env.game.current_player, self.action, self.val)
+
+        def get_winner(self):
+            pass
 
         def move_to_str(self, value):
             if(value[0] == -1):
@@ -592,14 +634,14 @@ class Window():
                                 bg ="#FFFFF0", height = 2, width= 15)
             self.player_round_bet.place(relx=0.35, rely=0.76, anchor='center')
 
-        def suggestions_box(self, msg="Suggestions"):
+        def suggestions_box(self, msg="Suggestions (TBD)"):
             if(self.update):
                 self.player_suggestion.destroy()
             self.player_suggestion =  Label(self.root, text = msg, 
                                 bg ="#FFFFF0", height = 5, width= 15)
             self.player_suggestion.place(relx=0.65, rely=0.76, anchor='center')
 
-        def error_box(self, msg="Error"):
+        def error_box(self, msg="Error Box"):
             if(self.update):
                 self.player_error.destroy()
             self.player_error =  Label(self.root, text = msg, 
