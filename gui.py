@@ -17,6 +17,7 @@ class Window():
             self.root.geometry("1200x650")
             self.root.configure(background="green")
             self.env = poker
+            self.NUM_PLAYERS = 6
             self.env.reset()
             self.CARD_SIZE = (95, 144)
             self.CARD_SIZE_ROTATED = (100, 66)
@@ -135,7 +136,7 @@ class Window():
             self.root.mainloop()
         
         def flop(self):
-            self.set_round_name(self.current_round)
+            self.update_all()
             self.table_card_1.destroy()
             self.show_card_1.place(relx=0.30, rely=0.20, anchor='center')
 
@@ -147,24 +148,147 @@ class Window():
             self.root.mainloop()
 
         def turn(self):
-            self.set_round_name(self.current_round)
+            self.update_all()
             self.table_card_4.destroy()
             self.show_card_4.place(relx=0.60, rely=0.20, anchor='center')
             self.root.mainloop()
 
         def river(self):
-            self.set_round_name(self.current_round)
+            self.update_all()
             self.table_card_5.destroy()
             self.show_card_5.place(relx=0.70, rely=0.20, anchor='center')
             self.root.mainloop()
 
         def end_state(self):
-            self.exit()
+            print()
+            self.update_all()
+            self.delete_all()
+            self.show_cards()
+
+            self.root.mainloop()
 
         """ Object Functions """
 
+        def show_cards(self):
+            moves = self.get_all_players_moves()
+            play = []
+            for m in moves:
+                play.append(self.move_to_str(m))
+            
+            posx = 0.05
+            posy = 0.6
+
+            if(play[0] != "None"):
+                self.p_name = Label(self.root, text = "You", 
+                                bg ="#FFFFF0", bd=2, height = 2, width= 8)
+                self.p_name.place(relx=0.5, rely=0.76-0.15, anchor='center')
+                self.player_card_1.place(relx=0.35+0.10, rely=0.76, anchor='center')
+                self.player_card_2.place(relx=0.35+0.20, rely=0.76, anchor='center')
+
+            if(play[1] != "None"):
+                self.o1_name = Label(self.root, text = "Opp1", 
+                                bg ="#FFFFF0", bd=2, height = 2, width= 8)
+                self.o1_name.place(relx=posx+0.05, rely=posy-0.15, anchor='center')
+
+                self.opp1_1.place(relx=0.928, rely=0.63, anchor='center')
+                self.opp1_2.place(relx=0.928, rely=0.75, anchor='center')
+
+
+            if(play[2] != "None"):
+                self.o2_name = Label(self.root, text = "Opp2", 
+                                bg ="#FFFFF0", bd=2, height = 2, width= 8)
+                self.o2_name.place(relx=posx+0.25, rely=posy-0.15, anchor='center')
+
+                self.opp2_1.place(relx=0.928, rely=0.18, anchor='center')
+                self.opp2_2.place(relx=0.928, rely=0.30, anchor='center')
+
+            if(play[3] != "None"):
+                self.o3_name = Label(self.root, text = "Opp3", 
+                                bg ="#FFFFF0", bd=2, height = 2, width= 8)
+                self.o3_name.place(relx=posx+0.45, rely=posy-0.15, anchor='center')
+
+                self.opp3_1.place(relx=0.072, rely=0.18, anchor='center')
+                self.opp3_2.place(relx=0.072, rely=0.30, anchor='center')
+
+            if(play[4] != "None"):
+                self.o4_name = Label(self.root, text = "Opp4", 
+                                bg ="#FFFFF0", bd=2, height = 2, width= 8)
+                self.o4_name.place(relx=posx+0.65, rely=posy-0.15, anchor='center')
+
+                self.opp4_1.place(relx=0.072, rely=0.48, anchor='center')
+                self.opp4_2.place(relx=0.072, rely=0.60, anchor='center')
+
+            if(play[5] != "None"):
+                self.o5_name = Label(self.root, text = "Opp5", 
+                                bg ="#FFFFF0", bd=2, height = 2, width= 8)
+                self.o5_name.place(relx=posx+0.85, rely=posy-0.15, anchor='center')
+
+                self.opp5_1.place(relx=0.072, rely=0.78, anchor='center')
+                self.opp5_2.place(relx=0.072, rely=0.90, anchor='center')
+
+
+            
+            
+
+        def delete_all(self):
+            
+            self.checkButton.destroy()
+            self.callButton.destroy()
+            self.raiseButton.destroy()
+            self.foldButton.destroy()
+
+
+            # Player Cards
+            self.player_chips.destroy()
+            self.player_round_bet.destroy()
+            self.player_suggestion.destroy()
+            self.player_error.destroy()
+
+
+            # Opponent 2
+            self.opp_1_card_1.destroy()
+            self.opp_1_card_2.destroy()
+
+            self.opp_2_card_1.destroy()
+            self.opp_2_card_2.destroy()
+
+            self.opp_3_card_1.destroy()
+            self.opp_3_card_2.destroy()
+
+            self.opp_4_card_1.destroy()
+            self.opp_4_card_2.destroy()
+
+            self.opp_5_card_1.destroy()
+            self.opp_5_card_2.destroy()
+
+            
+
+            # Opponent 1
+            self.opp1_chips.destroy()
+            self.opp1_move.destroy()
+            self.opp1_name.destroy()
+
+            self.opp2_chips.destroy()
+            self.opp2_move.destroy()
+            self.opp2_name.destroy()
+
+            self.opp3_chips.destroy()
+            self.opp3_move.destroy()
+            self.opp3_name.destroy()
+
+            self.opp4_chips.destroy()
+            self.opp4_move.destroy()
+            self.opp4_name.destroy()
+
+            self.opp5_chips.destroy()
+            self.opp5_move.destroy()
+            self.opp5_name.destroy()
+            
+
         def reset_game(self):
             self.env.reset()
+            self.update = False
+            self.start_state()
 
         def get_card_image_links(self, set_vals):
 
@@ -179,7 +303,12 @@ class Window():
 
         def set_community_cards(self):
             table = self.get_card_image_links(self.get_community_cards())
-            player_hand = self.get_card_image_links(self.get_player_hands()[0])
+            self.player_hand = self.get_card_image_links(self.get_player_hands()[0])
+            self.opp1_hand = self.get_card_image_links(self.get_player_hands()[1])
+            self.opp2_hand = self.get_card_image_links(self.get_player_hands()[2])
+            self.opp3_hand = self.get_card_image_links(self.get_player_hands()[3])
+            self.opp4_hand = self.get_card_image_links(self.get_player_hands()[4])
+            self.opp5_hand = self.get_card_image_links(self.get_player_hands()[5])
             
             self.img_1 = Image.open(table[0])
             self.img_1 = self.img_1.resize(self.CARD_SIZE)
@@ -201,13 +330,55 @@ class Window():
             self.img_5 = self.img_5.resize(self.CARD_SIZE)
             self.img_5 = ImageTk.PhotoImage(self.img_5)
 
-            self.p_1 = Image.open(player_hand[0])
+            self.p_1 = Image.open(self.player_hand[0])
             self.p_1 = self.p_1.resize(self.CARD_SIZE)
             self.p_1 = ImageTk.PhotoImage(self.p_1)
 
-            self.p_2 = Image.open(player_hand[1])
+            self.p_2 = Image.open(self.player_hand[1])
             self.p_2 = self.p_2.resize(self.CARD_SIZE)
             self.p_2 = ImageTk.PhotoImage(self.p_2)
+
+
+            self.opp1_1 = Image.open(self.opp1_hand[0])
+            self.opp1_1 = self.opp1_1.resize(self.CARD_SIZE)
+            self.opp1_1 = ImageTk.PhotoImage(self.opp1_1)
+
+            self.opp1_2 = Image.open(self.opp1_hand[1])
+            self.opp1_2 = self.opp1_2.resize(self.CARD_SIZE)
+            self.opp1_2 = ImageTk.PhotoImage(self.opp1_2)
+
+            self.opp2_1 = Image.open(self.opp2_hand[0])
+            self.opp2_1 = self.opp2_1.resize(self.CARD_SIZE)
+            self.opp2_1 = ImageTk.PhotoImage(self.opp2_1)
+
+            self.opp2_2 = Image.open(self.opp2_hand[1])
+            self.opp2_2 = self.opp2_2.resize(self.CARD_SIZE)
+            self.opp2_2 = ImageTk.PhotoImage(self.opp2_2)
+
+            self.opp3_1 = Image.open(self.opp3_hand[0])
+            self.opp3_1 = self.opp3_1.resize(self.CARD_SIZE)
+            self.opp3_1 = ImageTk.PhotoImage(self.opp3_1)
+
+            self.opp3_2 = Image.open(self.opp3_hand[1])
+            self.opp3_2 = self.opp3_2.resize(self.CARD_SIZE)
+            self.opp3_2 = ImageTk.PhotoImage(self.opp3_2)
+
+            self.opp4_1 = Image.open(self.opp4_hand[0])
+            self.opp4_1 = self.opp4_1.resize(self.CARD_SIZE)
+            self.opp4_1 = ImageTk.PhotoImage(self.opp4_1)
+
+            self.opp4_2 = Image.open(self.opp4_hand[1])
+            self.opp4_2 = self.opp4_2.resize(self.CARD_SIZE)
+            self.opp4_2 = ImageTk.PhotoImage(self.opp4_2)
+
+            self.opp5_1 = Image.open(self.opp5_hand[0])
+            self.opp5_1 = self.opp5_1.resize(self.CARD_SIZE)
+            self.opp5_1 = ImageTk.PhotoImage(self.opp5_1)
+
+            self.opp5_2 = Image.open(self.opp5_hand[1])
+            self.opp5_2 = self.opp5_2.resize(self.CARD_SIZE)
+            self.opp5_2 = ImageTk.PhotoImage(self.opp5_2)
+            
 
             self.get_community_cards()
 
@@ -220,6 +391,21 @@ class Window():
             # Player Cards
             self.player_card_1 = Button(self.root, image= self.p_1, command=None)
             self.player_card_2 = Button(self.root, image= self.p_2,command=None)
+            
+            self.opp1_1 = Button(self.root, image= self.opp1_1, command=None)
+            self.opp1_2 = Button(self.root, image= self.opp1_2, command=None)
+
+            self.opp2_1 = Button(self.root, image= self.opp2_1, command=None)
+            self.opp2_2 = Button(self.root, image= self.opp2_2, command=None)
+
+            self.opp3_1 = Button(self.root, image= self.opp3_1, command=None)
+            self.opp3_2 = Button(self.root, image= self.opp3_2, command=None)
+
+            self.opp4_1 = Button(self.root, image= self.opp4_1, command=None)
+            self.opp4_2 = Button(self.root, image= self.opp4_2, command=None)
+
+            self.opp5_1 = Button(self.root, image= self.opp5_1, command=None)
+            self.opp5_2 = Button(self.root, image= self.opp5_2, command=None)
 
 
         def step_game(self):
@@ -228,17 +414,14 @@ class Window():
             #checks hand phase
             prev = self.env.game.hand_phase
             
-            # make sure action is valid, returs true or false
-            # define validate_choice
-            self.env.game.validate_move(self.env.game.current_player, self.action, self.val)
-
             obs, reward, done, info = self.env.step(
                 (self.action, self.val), format_action=False, get_all_rewards=True
             )
 
             if(done):
-                self.env.reset()
-                self.reset_game()
+                self.cuurent_round = "End"
+                self.end_state()
+                
 
             if(prev != self.env.game.hand_phase):
                 self.next_round()
@@ -284,10 +467,36 @@ class Window():
             """Gets all best for the round
             """
             pot_commits, stage_pot_commits = self.env.get_pot_commits()
-            return stage_pot_commits
+            return pot_commits, stage_pot_commits
 
         def validate_move(self):
             return self.env.game.validate_move(self.env.game.current_player, self.action, self.val)
+
+        def move_to_str(self, value):
+            if(value[0] == -1):
+                value = "None"
+            elif(value[0] == 0):
+                value = "Call"
+            elif(value[0] == 1):
+                value = "Raise " + str(value[1])
+            elif(value[0] == 2):
+                value = "Check"
+            elif(value[0] == 3):
+                value = "Fold"
+            elif(value[0] == 4):
+                value = "All-in"
+            return value
+
+        def get_pot_value(self):
+            total = 0
+
+            bets, n = self.get_all_players_bets()
+
+            for i in bets:
+                total += bets[i]
+            
+            return total
+                
 
 
 
@@ -297,8 +506,10 @@ class Window():
         def update_all(self):
             # Setting Text boxes
             pot_vals = self.get_all_players_chips()
+            moves = self.get_all_players_moves()
+        
             # General
-            self.set_pot(0)
+            self.set_pot()
             self.set_round_name(self.current_round)
 
             # Player
@@ -307,27 +518,27 @@ class Window():
 
             # Opponent 1
             self.set_opp1_chips(pot_vals[1])
-            self.set_opp1_move("None")
+            self.set_opp1_move(moves[1])
             self.set_opp1_name()
 
             # Opponent 2
             self.set_opp2_chips(pot_vals[2])
-            self.set_opp2_move("None")
+            self.set_opp2_move(moves[2])
             self.set_opp2_name()
 
             # Opponent 3
             self.set_opp3_chips(pot_vals[3])
-            self.set_opp3_move("None")
+            self.set_opp3_move(moves[3])
             self.set_opp3_name()
 
             # Opponent 4
             self.set_opp4_chips(pot_vals[4])
-            self.set_opp4_move("None")
+            self.set_opp4_move(moves[4])
             self.set_opp4_name()
 
             # Opponent 5
             self.set_opp5_chips(pot_vals[5])
-            self.set_opp5_move("None")
+            self.set_opp5_move(moves[5])
             self.set_opp5_name()
 
             self.suggestions_box()
@@ -335,9 +546,13 @@ class Window():
             
             self.update = True
 
-        def set_pot(self, value):
+        def set_pot(self):
+
+            value = self.get_pot_value()
+
             if(self.update):
                 self.pot_value.destroy()
+
             self.pot_value =  Label(self.root, text = "Current Pot: " + str(value), 
                                 bg ="#FFFFF0", bd=2, height = 2, width= 50)
             self.pot_value.place(relx=0.50, rely=0.36, anchor='center')
@@ -348,6 +563,7 @@ class Window():
             self.round_name =  Label(self.root, text = name, font=("Arial", 12),
                                 bg ="#FFFFF0", bd=2, height = 2, width= 50)
             self.round_name.place(relx=0.50, rely=0.025, anchor='center')
+            
 
         def pop_up_raise(self):
             self.top = TopLevel(self.root)
@@ -364,7 +580,7 @@ class Window():
         # Player
         def set_player_chips(self, value):
             if(self.update):
-                self.round_name.destroy()
+                self.player_chips.destroy()
             self.player_chips =  Label(self.root, text = "Chips: " + str(value), 
                                 bg ="#FFFFF0", height = 2, width= 15)
             self.player_chips.place(relx=0.35, rely=0.70, anchor='center')
@@ -399,20 +615,15 @@ class Window():
             self.opp1_chips.place(relx=0.82, rely=0.75, anchor='center')
 
         def set_opp1_move(self, value):
-            if(value[0] == -1):
-                value = ""
-            elif(value[0] == 0):
-                value = "Call"
-            elif(value[0] == 1):
-                value = "Raise"
-            elif(value[0] == 2):
-                value = "Check"
-            elif(value[0] == 3):
-                value = "Fold"
-            elif(value[0] == 4):
-                value = "All-in"
-
             
+            value = self.move_to_str(value)
+            if(value == "Fold"):
+                try:
+                    self.opp_1_card_1.destroy()
+                    self.opp_1_card_2.destroy()
+                except:
+                    pass
+
             if(self.update):
                 self.opp1_move.destroy()
             self.opp1_move =  Label(self.root, text = "Prev Move: " + value, 
@@ -436,20 +647,18 @@ class Window():
             self.opp2_chips.place(relx=0.82, rely=0.30, anchor='center')
 
         def set_opp2_move(self, value):
-            if(value[0] == -1):
-                value = ""
-            elif(value[0] == 0):
-                value = "Call"
-            elif(value[0] == 1):
-                value = "Raise"
-            elif(value[0] == 2):
-                value = "Check"
-            elif(value[0] == 3):
-                value = "Fold"
-            elif(value[0] == 4):
-                value = "All-in"
+
+            value = self.move_to_str(value)
+
+            if(value == "Fold"):
+                try:
+                    self.opp_2_card_1.destroy()
+                    self.opp_2_card_2.destroy()
+                except:
+                    pass
+
             if(self.update):
-                self.opp2_move .destroy()
+                self.opp2_move.destroy()
             self.opp2_move =  Label(self.root, text = "Prev Move: " + value, 
                                 bg ="#FFFFF0", bd=2, height = 2, width= 15)
             self.opp2_move.place(relx=0.82, rely=0.24, anchor='center')
@@ -471,18 +680,14 @@ class Window():
             self.opp3_chips.place(relx=0.18, rely=0.30, anchor='center')
         
         def set_opp3_move(self, value):
-            if(value[0] == -1):
-                value = ""
-            elif(value[0] == 0):
-                value = "Call"
-            elif(value[0] == 1):
-                value = "Raise"
-            elif(value[0] == 2):
-                value = "Check"
-            elif(value[0] == 3):
-                value = "Fold"
-            elif(value[0] == 4):
-                value = "All-in"
+            value = self.move_to_str(value)
+            if(value == "Fold"):
+                try:
+                    self.opp_3_card_1.destroy()
+                    self.opp_3_card_2.destroy()
+                except:
+                    pass
+
             if(self.update):
                 self.opp3_move.destroy()
             self.opp3_move =  Label(self.root, text = "Prev Move: " + value, 
@@ -507,18 +712,14 @@ class Window():
             self.opp4_chips.place(relx=0.18, rely=0.60, anchor='center')
         
         def set_opp4_move(self, value):
-            if(value[0] == -1):
-                value = ""
-            elif(value[0] == 0):
-                value = "Call"
-            elif(value[0] == 1):
-                value = "Raise"
-            elif(value[0] == 2):
-                value = "Check"
-            elif(value[0] == 3):
-                value = "Fold"
-            elif(value[0] == 4):
-                value = "All-in"
+            value = self.move_to_str(value)
+            if(value == "Fold"):
+                try:
+                    self.opp_4_card_1.destroy()
+                    self.opp_4_card_2.destroy()
+                except:
+                    pass
+
             if(self.update):
                 self.opp4_move.destroy()
             self.opp4_move =  Label(self.root, text = "Prev Move: " + value, 
@@ -544,20 +745,17 @@ class Window():
             self.opp5_chips.place(relx=0.18, rely=0.90, anchor='center')
         
         def set_opp5_move(self, value):
-            if(value[0] == -1):
-                value = ""
-            elif(value[0] == 0):
-                value = "Call"
-            elif(value[0] == 1):
-                value = "Raise"
-            elif(value[0] == 2):
-                value = "Check"
-            elif(value[0] == 3):
-                value = "Fold"
-            elif(value[0] == 4):
-                value = "All-in"
+
+            value = self.move_to_str(value)
+            if(value == "Fold"):
+                try:
+                    self.opp_5_card_1.destroy()
+                    self.opp_5_card_2.destroy()
+                except:
+                    pass
+
             if(self.update):
-                self.opp5_chips.destroy()
+                self.opp5_move.destroy()
             self.opp5_move =  Label(self.root, text = "Prev Move: " + value, 
                                 bg ="#FFFFF0", bd=2, height = 2, width= 15)
             self.opp5_move.place(relx=0.18, rely=0.84, anchor='center')
@@ -592,26 +790,31 @@ class Window():
 
         def checkButton(self):
             self.action, self.val = ActionType.CHECK, None
-            self.step_game()
-            pass
+            if(self.validate_move()):
+                self.step_game()
+            else:
+                self.error_box("Check Not Valid, Pot already has a bet")
 
         def callButton(self):
             self.action, self.val = ActionType.CALL, None
-            self.validate_move()
-            self.step_game()
-            pass
+
+            if(self.validate_move()):
+                self.step_game()
+            else:
+                self.action, self.val = ActionType.CHECK, None
+                self.step_game()
 
         def raiseButton(self):
             self.pop_up_raise()
             self.action, self.val = ActionType.RAISE, "some value"
-            self.step_game()
-            pass
+            if(self.validate_move()):
+                self.step_game()
+            else:
+                self.error_box("Raise Not Valid")
 
         def foldButton(self):
             self.action, self.val = ActionType.FOLD, None
             self.step_game()
-            pass
-                    
 
         def exit(self):
             exit()
