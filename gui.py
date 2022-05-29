@@ -165,6 +165,38 @@ class Window():
             self.root.mainloop()
 
         def end_state(self):
+            try:
+                self.table_card_1.destroy()
+                self.show_card_1.place(relx=0.30, rely=0.20, anchor='center')
+            except:
+                pass
+
+            try:
+                self.table_card_2.destroy()
+                self.show_card_2.place(relx=0.40, rely=0.20, anchor='center')
+            except:
+                pass
+
+            try:
+                self.table_card_3.destroy()
+                self.show_card_3.place(relx=0.50, rely=0.20, anchor='center')
+            except:
+                pass
+
+            try:
+                self.table_card_4.destroy()
+                self.show_card_4.place(relx=0.60, rely=0.20, anchor='center')
+            except:
+                pass
+
+            try:
+                self.table_card_5.destroy()
+                self.show_card_5.place(relx=0.70, rely=0.20, anchor='center')
+            except:
+                pass
+
+
+
             self.update_all()
             self.delete_all()
             self.show_cards()
@@ -172,6 +204,8 @@ class Window():
             self.restartButton = Button(self.root, text="Next Game", activebackground="#0000FF", 
                                 bg="#7EC8E3", fg="#FFFFFF", bd=0, command=self.reset_game, height=3, width=15)
             self.restartButton.place(relx=0.5, rely=0.5, anchor='center')
+
+            self.winner_box()
 
             self.root.mainloop()
 
@@ -257,20 +291,10 @@ class Window():
                 self.objectsToDestroy.append(self.opp5_c1)
                 self.objectsToDestroy.append(self.opp5_c2)
 
-        def delete_all(self):
-            
-            # self.checkButton.destroy()
-            # self.callButton.destroy()
-            # self.raiseButton.destroy()
-            # self.foldButton.destroy()
-
-
+        def delete_all(self):           
             # Player Cards
             self.player_chips.destroy()
             self.player_round_bet.destroy()
-            # self.player_suggestion.destroy()
-            self.player_error.destroy()
-
 
             # Opponent 2
             self.opp_1_card_1.destroy()
@@ -591,7 +615,6 @@ class Window():
             self.set_opp5_name()
 
             self.suggestions_box()
-            self.error_box()
               
             if self.env.game.players[0].state in [PlayerState.OUT, PlayerState.SKIP]:
                 self.player_suggestion.config(text="No Suggestion\nAvailable")
@@ -622,7 +645,7 @@ class Window():
 
         def pop_up_raise(self):
             self.top = Toplevel(self.root)
-            self.top.geometry("100x100")
+            self.top.geometry("150x100")
 
             Label(self.top, text="Enter Bet Amount").pack()
 
@@ -656,12 +679,28 @@ class Window():
                 self.player_suggestion.place(relx=0.65, rely=0.76, anchor='center')
 
         def error_box(self, msg="Error Box"):
-            if(self.update):
-                self.player_error.destroy()
-            self.player_error =  Label(self.root, text = msg, 
-                                bg ="#FFFFF0", height = 2, width= 25)
-            self.player_error.place(relx=0.50, rely=0.59, anchor='center')
+            self.top = Toplevel(self.root)
+            self.top.geometry("300x100")
 
+            Label(self.top, text=msg).pack()
+
+            self.root.wait_window(self.top)
+
+        def winner_box(self):
+            toPrint = "WINNERS \n"
+            for w in self.get_winner_id():
+                if(w == 0):
+                    toPrint = "You\n"
+                else:
+                    toPrint = toPrint + "Player " + str(w) + "\n"
+            
+            self.top = Toplevel(self.root)
+            self.top.geometry("300x100")
+
+            Label(self.top, text=toPrint).pack()
+
+            self.root.wait_window(self.top)
+        
         # Opponent 1
         def set_opp1_chips(self, value):
             if(self.update):
