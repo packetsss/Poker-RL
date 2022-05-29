@@ -2,7 +2,9 @@ from tkinter import *
 from PIL import Image, ImageTk
 from typing import TYPE_CHECKING
 
+from agent import CrammerAgent
 from engine.game.hand_phase import HandPhase
+from engine.game.player_state import PlayerState
 from engine.card.card import *
 from engine.game.history import PrehandHistory
 from engine.game.action_type import ActionType
@@ -16,19 +18,20 @@ class Window():
             self.root.title('Poker RL Robot')
             self.root.geometry("1200x650")
             self.root.configure(background="green")
-            self.env = poker
+            self.env: PokerEnv = poker
             self.NUM_PLAYERS = 6
+            self.game_cnt = 0
             self.env.reset()
+            self.suggestion_agent = CrammerAgent(self.env.game, 0, self.env.num_to_action)
             self.CARD_SIZE = (95, 144)
             self.CARD_SIZE_ROTATED = (100, 66)
-            self.update = False
+            self.update = False      
             self.current_round = "Pre Flop"
             self.converter = {"A": "Ace of ", "K": "King of ", "Q": "Queen of ", "J": "Jack of ", "T": "Ten of ",
                             "9": "Nine of ", "8": "Eight of ", "7": "Seven of ", "6": "Six of ", "5": "Five of ",
                             "4": "Four of ", "3": "Three of ", "2": "Two of ",
                              "d": "Diamonds.png", "s": "Spades.png", "h": "Hearts.png", "c" : "Clubs.png"
                              }
-
 
 
         """ Game States """
@@ -66,21 +69,23 @@ class Window():
 
             # Setting Player buttons
             bx_pos = 0.35
-            self.checkButton = Button(self.root, text="Check", activebackground="#2f4f4f", 
-                                bg="#18A558", fg="#FFFFFF", bd=0, command=self.checkButton, height=3, width=15)
-            self.checkButton.place(relx=bx_pos, rely=0.95, anchor='center')
+            if(self.game_cnt == 0):
+                self.checkButton = Button(self.root, text="Check", activebackground="#2f4f4f", 
+                                    bg="#18A558", fg="#FFFFFF", bd=0, command=self.checkButton, height=3, width=15)
+                self.checkButton.place(relx=bx_pos, rely=0.95, anchor='center')
 
-            self.callButton = Button(self.root, text="Call", activebackground="#0000FF", 
-                                bg="#7EC8E3", fg="#FFFFFF", bd=0, command=self.callButton, height=3, width=15)
-            self.callButton.place(relx=bx_pos+0.10, rely=0.95, anchor='center')
+                self.callButton = Button(self.root, text="Call", activebackground="#0000FF", 
+                                    bg="#7EC8E3", fg="#FFFFFF", bd=0, command=self.callButton, height=3, width=15)
+                self.callButton.place(relx=bx_pos+0.10, rely=0.95, anchor='center')
 
-            self.raiseButton = Button(self.root, text="Raise", activebackground="#FF8A8A", 
-                                bg="#FF0000", fg="#FFFFFF", bd=0, command=self.raiseButton, height=3, width=15)
-            self.raiseButton.place(relx=bx_pos+0.20, rely=0.95, anchor='center')
+                self.raiseButton = Button(self.root, text="Raise", activebackground="#FF8A8A", 
+                                    bg="#FF0000", fg="#FFFFFF", bd=0, command=self.raiseButton, height=3, width=15)
+                self.raiseButton.place(relx=bx_pos+0.20, rely=0.95, anchor='center')
 
-            self.foldButton = Button(self.root, text="Fold", activebackground="#737373", 
-                                bg="#171717", fg="#FFFFFF", bd=0, command=self.foldButton, height=3, width=15)
-            self.foldButton.place(relx=bx_pos+0.30, rely=0.95, anchor='center')
+                self.foldButton = Button(self.root, text="Fold", activebackground="#737373", 
+                                    bg="#171717", fg="#FFFFFF", bd=0, command=self.foldButton, height=3, width=15)
+                self.foldButton.place(relx=bx_pos+0.30, rely=0.95, anchor='center')
+            
 
             # Setting Opponenets Cards
             default_rotated_path = ".//cards//defaultRotated.png"
@@ -160,7 +165,6 @@ class Window():
             self.root.mainloop()
 
         def end_state(self):
-            print()
             self.update_all()
             self.delete_all()
             self.show_cards()
@@ -255,16 +259,16 @@ class Window():
 
         def delete_all(self):
             
-            self.checkButton.destroy()
-            self.callButton.destroy()
-            self.raiseButton.destroy()
-            self.foldButton.destroy()
+            # self.checkButton.destroy()
+            # self.callButton.destroy()
+            # self.raiseButton.destroy()
+            # self.foldButton.destroy()
 
 
             # Player Cards
             self.player_chips.destroy()
             self.player_round_bet.destroy()
-            self.player_suggestion.destroy()
+            # self.player_suggestion.destroy()
             self.player_error.destroy()
 
 
@@ -325,6 +329,7 @@ class Window():
             except:
                 pass
             
+            self.game_cnt += 1
             self.env.reset()
             self.update = False
             self.current_round = "Pre Flop" 
@@ -456,9 +461,10 @@ class Window():
             obs, reward, done, info = self.env.step(
                 (self.action, self.val), format_action=False, get_all_rewards=True
             )
+            
 
             if(done):
-                self.cuurent_round = "End"
+                self.curent_round = "End"
                 self.end_state()
                 
 
@@ -511,8 +517,10 @@ class Window():
         def validate_move(self):
             return self.env.game.validate_move(self.env.game.current_player, self.action, self.val)
 
-        def get_winner(self):
-            pass
+        def get_winner_id(self):
+            """Gets Winner of the game
+            """
+            return list(self.env.get_winners().keys())
 
         def move_to_str(self, value):
             if(value[0] == -1):
@@ -538,14 +546,13 @@ class Window():
                 total += bets[i]
             
             return total
-                
-
-
-
-            """ GUI Text Functions """
+            
+        """ GUI Text Functions """
 
         # General
         def update_all(self):
+
+
             # Setting Text boxes
             pot_vals = self.get_all_players_chips()
             moves = self.get_all_players_moves()
@@ -585,6 +592,12 @@ class Window():
 
             self.suggestions_box()
             self.error_box()
+              
+            if self.env.game.players[0].state in [PlayerState.OUT, PlayerState.SKIP]:
+                self.player_suggestion.config(text="No Suggestion\nAvailable")
+            else:
+                suggestion = self.suggestion_agent.calculate_action()
+                self.player_suggestion.config(text=f"Agent Suggests:\n{self.move_to_str([self.env.action_to_num[suggestion[0]], suggestion[1]])}")
             
             self.update = True
 
@@ -608,16 +621,18 @@ class Window():
             
 
         def pop_up_raise(self):
-            self.top = TopLevel(self.root)
-            self.top.geometry("50x50")
+            self.top = Toplevel(self.root)
+            self.top.geometry("100x100")
 
-            self.raise_val = entry(self.top, width=20)
-            self.raise_val.pack()
+            Label(self.top, text="Enter Bet Amount").pack()
 
-            button = Button(self.top, text="Enter", command=lambda: button_pressed.set("button pressed"))
-            button.wait_variable(button_pressed)
+            self.raise_b = Entry(self.top)
+            self.raise_b.pack(padx=5)
 
-            self.top.mainloop()
+            self.rbutton = Button(self.top, text="Enter", command=lambda: self.get_raise_val())
+            self.rbutton.pack()
+
+            self.root.wait_window(self.top)
 
         # Player
         def set_player_chips(self, value):
@@ -635,11 +650,10 @@ class Window():
             self.player_round_bet.place(relx=0.35, rely=0.76, anchor='center')
 
         def suggestions_box(self, msg="Suggestions (TBD)"):
-            if(self.update):
-                self.player_suggestion.destroy()
-            self.player_suggestion =  Label(self.root, text = msg, 
-                                bg ="#FFFFF0", height = 5, width= 15)
-            self.player_suggestion.place(relx=0.65, rely=0.76, anchor='center')
+            if self.game_cnt == 0:
+                self.player_suggestion =  Label(self.root, text = msg, 
+                                    bg ="#FFFFF0", height = 5, width= 15)
+                self.player_suggestion.place(relx=0.65, rely=0.76, anchor='center')
 
         def error_box(self, msg="Error Box"):
             if(self.update):
@@ -838,6 +852,7 @@ class Window():
                 self.error_box("Check Not Valid, Pot already has a bet")
 
         def callButton(self):
+            print("yes")
             self.action, self.val = ActionType.CALL, None
 
             if(self.validate_move()):
@@ -848,7 +863,7 @@ class Window():
 
         def raiseButton(self):
             self.pop_up_raise()
-            self.action, self.val = ActionType.RAISE, "some value"
+            self.action, self.val = ActionType.RAISE, int(self.raise_value)
             if(self.validate_move()):
                 self.step_game()
             else:
@@ -857,6 +872,10 @@ class Window():
         def foldButton(self):
             self.action, self.val = ActionType.FOLD, None
             self.step_game()
+
+        def get_raise_val(self):
+            self.raise_value = self.raise_b.get()
+            self.top.destroy()
 
         def exit(self):
             exit()
