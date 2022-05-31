@@ -717,7 +717,7 @@ if __name__ == "__main__":
     import cProfile
 
     with cProfile.Profile() as pr:
-        main(n_games=1)
+        main(n_games=1000)
 
     stats = pstats.Stats(pr)
     stats.sort_stats(pstats.SortKey.TIME)
